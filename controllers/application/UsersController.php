@@ -142,11 +142,17 @@ class UsersController
 		$perPage = (int) $request->query->get('per_page', 50);
 		$perPage = max(1, min($perPage, 100)); // Clamp per_page between 1 and 100
 
+		// Safely get filter parameters
+		$filterParams = $request->query->all('filter');
+		if (!is_array($filterParams)) {
+			$filterParams = [];
+		}
+
 		$filters = [
-			'email' => $request->query->get('filter')['email'] ?? null,
-			'uuid' => $request->query->get('filter')['uuid'] ?? null,
-			'username' => $request->query->get('filter')['username'] ?? null,
-			'external_id' => $request->query->get('filter')['external_id'] ?? null,
+			'email' => $filterParams['email'] ?? null,
+			'uuid' => $filterParams['uuid'] ?? null,
+			'username' => $filterParams['username'] ?? null,
+			'external_id' => $filterParams['external_id'] ?? null,
 		];
 
 		$sort = $request->query->get('sort', 'id');
@@ -1121,11 +1127,13 @@ class UsersController
 		}
 
 		// Set default role if not provided
-		if (empty($data['root_admin'])) {
+		if (!isset($data['root_admin'])) {
+			$data['role_id'] = 1; // Default to user role
+		} else {
 			if ($data['root_admin'] === true) {
-				$data['role_id'] = 4;
+				$data['role_id'] = 4; // Admin role
 			} else {
-				$data['role_id'] = 1;
+				$data['role_id'] = 1; // User role
 			}
 		}
 
@@ -1171,12 +1179,16 @@ class UsersController
 			'ip_address' => '0.0.0.0',
 		]);
 
-		\App\Chat\Activity::createActivity([
-			'user_uuid' => $request->get('user')['uuid'],
-			'name' => 'create_user',
-			'context' => 'Created a new user ' . $data['username'] . ' via Pterodactyl API',
-			'ip_address' => \App\CloudFlare\CloudFlareRealIP::getRealIP(),
-		]);
+		// Get the requesting user safely
+		$requestingUser = $request->get('user');
+		if ($requestingUser && isset($requestingUser['uuid'])) {
+			\App\Chat\Activity::createActivity([
+				'user_uuid' => $requestingUser['uuid'],
+				'name' => 'create_user',
+				'context' => 'Created a new user ' . $data['username'] . ' via Pterodactyl API',
+				'ip_address' => \App\CloudFlare\CloudFlareRealIP::getRealIP(),
+			]);
+		}
 
 		// Get the created user for response
 		$createdUser = User::getUserById($userId);

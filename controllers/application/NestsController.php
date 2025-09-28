@@ -810,48 +810,58 @@ class NestsController
 		$include = $request->query->get('include', '');
 		$includeVariables = strpos($include, 'variables') !== false;
 		$includeNest = strpos($include, 'nest') !== false;
+		$includeServers = strpos($include, 'servers') !== false;
+		$includeConfig = strpos($include, 'config') !== false;
+		$includeScript = strpos($include, 'script') !== false;
 
 		// Build response data
-		$eggData = [
-			'object' => 'egg',
-			'attributes' => [
-				'id' => (int) $egg['id'],
-				'uuid' => $egg['uuid'] ?? null,
-				'name' => $egg['name'],
-				'nest' => (int) $egg['realm_id'],
-				'author' => $egg['author'],
-				'description' => $egg['description'],
-				'docker_image' => $egg['docker_images'] ? json_decode($egg['docker_images'], true)[array_key_first(json_decode($egg['docker_images'], true))] ?? '' : '',
-				'docker_images' => $egg['docker_images'] ? json_decode($egg['docker_images'], true) : [],
-				'config' => [
-					'files' => $egg['config_files'] ? json_decode($egg['config_files'], true) : [],
-					'startup' => $egg['config_startup'] ? json_decode($egg['config_startup'], true) : [],
-					'stop' => $egg['config_stop'] ?? '',
-					'logs' => $egg['config_logs'] ? json_decode($egg['config_logs'], true) : [],
-					'file_denylist' => $egg['file_denylist'] ? json_decode($egg['file_denylist'], true) : [],
-					'extends' => $egg['config_from'] ? (int) $egg['config_from'] : null,
-				],
-				'startup' => $egg['startup'] ?? '',
-				'script' => [
-					'privileged' => (bool) $egg['script_is_privileged'],
-					'install' => $egg['script_install'] ?? '',
-					'entry' => $egg['script_entry'] ?? 'ash',
-					'container' => $egg['script_container'] ?? 'alpine:3.4',
-					'extends' => $egg['copy_script_from'] ? (int) $egg['copy_script_from'] : null,
-				],
-				'created_at' => DateTimePtero::format($egg['created_at']),
-				'updated_at' => DateTimePtero::format($egg['updated_at']),
-			]
+		$attributes = [
+			'id' => (int) $egg['id'],
+			'uuid' => $egg['uuid'] ?? null,
+			'name' => $egg['name'],
+			'nest' => (int) $egg['realm_id'],
+			'author' => $egg['author'],
+			'description' => $egg['description'],
+			'docker_image' => $egg['docker_images'] ? json_decode($egg['docker_images'], true)[array_key_first(json_decode($egg['docker_images'], true))] ?? '' : '',
+			'docker_images' => $egg['docker_images'] ? json_decode($egg['docker_images'], true) : [],
+			'config' => [
+				'files' => $egg['config_files'] ? json_decode($egg['config_files'], true) : [],
+				'startup' => $egg['config_startup'] ? json_decode($egg['config_startup'], true) : [],
+				'stop' => $egg['config_stop'] ?? '',
+				'logs' => $egg['config_logs'] ? json_decode($egg['config_logs'], true) : [],
+				'file_denylist' => $egg['file_denylist'] ? json_decode($egg['file_denylist'], true) : [],
+				'extends' => $egg['config_from'] ? (int) $egg['config_from'] : null,
+			],
+			'startup' => $egg['startup'] ?? '',
+			'script' => [
+				'privileged' => (bool) $egg['script_is_privileged'],
+				'install' => $egg['script_install'] ?? '',
+				'entry' => $egg['script_entry'] ?? 'ash',
+				'container' => $egg['script_container'] ?? 'alpine:3.4',
+				'extends' => $egg['copy_script_from'] ? (int) $egg['copy_script_from'] : null,
+			],
+			'created_at' => DateTimePtero::format($egg['created_at']),
+			'updated_at' => DateTimePtero::format($egg['updated_at']),
 		];
 
 		// Add relationships if requested
 		$relationships = [];
 
 		if ($includeVariables) {
-			// Get variables for this egg
+			// Get variables for this egg - get unique variables by env_variable name
 			$variables = SpellVariable::getVariablesBySpellId($egg['id']);
+			$uniqueVariables = [];
 			$variableData = [];
+
+			// Group by env_variable to get unique variables (like Pterodactyl does)
 			foreach ($variables as $variable) {
+				$envVar = $variable['env_variable'];
+				if (!isset($uniqueVariables[$envVar])) {
+					$uniqueVariables[$envVar] = $variable;
+				}
+			}
+
+			foreach ($uniqueVariables as $variable) {
 				$variableData[] = [
 					'object' => 'egg_variable',
 					'attributes' => [
@@ -890,9 +900,83 @@ class NestsController
 			];
 		}
 
-		if (!empty($relationships)) {
-			$eggData['relationships'] = $relationships;
+		if ($includeServers) {
+			// Get servers for this egg with full data including environment variables
+			$servers = $this->getServersWithEnvironmentVariables($nest['id']);
+			$serverData = [];
+			foreach ($servers as $serverId => $server) {
+				// Only include servers that use this specific egg
+				if ($server['spell_id'] == $egg['id']) {
+					$serverData[] = [
+						'object' => 'server',
+						'attributes' => [
+							'id' => (int) $server['id'],
+							'external_id' => $server['external_id'],
+							'uuid' => $server['uuid'],
+							'identifier' => $server['uuidShort'] ?? substr($server['uuid'], 0, 8),
+							'name' => $server['name'],
+							'description' => $server['description'],
+							'status' => $server['status'],
+							'suspended' => (bool) $server['suspended'],
+							'limits' => [
+								'memory' => (int) $server['memory'],
+								'swap' => (int) $server['swap'],
+								'disk' => (int) $server['disk'],
+								'io' => (int) $server['io'],
+								'cpu' => (int) $server['cpu'],
+								'threads' => $server['threads'] ? (int) $server['threads'] : null,
+								'oom_disabled' => (bool) $server['oom_disabled'],
+							],
+							'feature_limits' => [
+								'databases' => (int) $server['database_limit'],
+								'allocations' => (int) $server['allocation_limit'],
+								'backups' => (int) $server['backup_limit'],
+							],
+							'user' => (int) $server['owner_id'],
+							'node' => (int) $server['node_id'],
+							'allocation' => (int) $server['allocation_id'],
+							'nest' => (int) $server['realms_id'],
+							'egg' => (int) $server['spell_id'],
+							'container' => [
+								'startup_command' => $server['startup'],
+								'image' => $server['image'],
+								'installed' => $server['installed_at'] ? 1 : 0,
+								'environment' => $this->buildEnvironmentVariables($server),
+							],
+							'created_at' => DateTimePtero::format($server['created_at']),
+							'updated_at' => DateTimePtero::format($server['updated_at']),
+						]
+					];
+				}
+			}
+			$relationships['servers'] = [
+				'object' => 'list',
+				'data' => $serverData,
+			];
 		}
+
+		if ($includeConfig) {
+			$relationships['config'] = [
+				'object' => 'null_resource',
+				'attributes' => null
+			];
+		}
+
+		if ($includeScript) {
+			$relationships['script'] = [
+				'object' => 'null_resource',
+				'attributes' => null
+			];
+		}
+
+		if (!empty($relationships)) {
+			$attributes['relationships'] = $relationships;
+		}
+
+		$eggData = [
+			'object' => 'egg',
+			'attributes' => $attributes
+		];
 
 		return ApiResponse::sendManualResponse($eggData, 200);
 	}

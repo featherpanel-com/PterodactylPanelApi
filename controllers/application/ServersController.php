@@ -1213,7 +1213,9 @@ class ServersController
 	public function store(Request $request)
 	{
 		$data = json_decode($request->getContent(), true);
+		$logger = App::getInstance(true)->getLogger();
 		if (json_last_error() !== JSON_ERROR_NONE) {
+			$logger->error('Invalid JSON in request body: ' . $request->getContent());
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1226,7 +1228,7 @@ class ServersController
 		}
 
 		// Required fields for server creation
-		$requiredFields = ['name', 'user', 'egg', 'limits', 'feature_limits', 'allocation'];
+		$requiredFields = ['name', 'user', 'egg', 'limits', 'feature_limits'];
 		$missingFields = [];
 		foreach ($requiredFields as $field) {
 			if (!isset($data[$field]) || (is_string($data[$field]) && trim($data[$field]) === '')) {
@@ -1234,7 +1236,16 @@ class ServersController
 			}
 		}
 
+		// Check if either allocation or deploy is provided
+		$hasAllocation = isset($data['allocation']) && !empty($data['allocation']);
+		$hasDeploy = isset($data['deploy']) && !empty($data['deploy']);
+
+		if (!$hasAllocation && !$hasDeploy) {
+			$missingFields[] = 'allocation or deploy';
+		}
+
 		if (!empty($missingFields)) {
+			$logger->error('Missing required fields: ' . implode(', ', $missingFields));
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1259,6 +1270,7 @@ class ServersController
 		}
 
 		if (!empty($missingLimits)) {
+			$logger->error('Missing required limits: ' . implode(', ', $missingLimits));
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1283,6 +1295,7 @@ class ServersController
 		}
 
 		if (!empty($missingFeatureLimits)) {
+			$logger->error('Missing required feature limits: ' . implode(', ', $missingFeatureLimits));
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1297,25 +1310,10 @@ class ServersController
 			], 422);
 		}
 
-		// Validate allocation object
-		if (!isset($data['allocation']['default'])) {
-			return ApiResponse::sendManualResponse([
-				'errors' => [
-					[
-						'code' => 'ValidationException',
-						'status' => '422',
-						'detail' => 'The request data was invalid or malformed.',
-						'meta' => [
-							'source_field' => 'allocation.default'
-						]
-					]
-				]
-			], 422);
-		}
-
 		// Validate user exists
 		$owner = User::getUserById($data['user']);
 		if (!$owner) {
+			$logger->error('User not found: ' . $data['user']);
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1333,6 +1331,7 @@ class ServersController
 		// Validate spell (egg) exists
 		$spell = Spell::getSpellById($data['egg']);
 		if (!$spell) {
+			$logger->error('Spell not found: ' . $data['egg']);
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1347,59 +1346,139 @@ class ServersController
 			], 422);
 		}
 
-		// Validate allocation exists
-		$allocation = Allocation::getAllocationById($data['allocation']['default']);
-		if (!$allocation) {
-			return ApiResponse::sendManualResponse([
-				'errors' => [
-					[
-						'code' => 'ValidationException',
-						'status' => '422',
-						'detail' => 'The request data was invalid or malformed.',
-						'meta' => [
-							'source_field' => 'allocation.default'
-						]
-					]
-				]
-			], 422);
-		}
+		// Handle allocation assignment
+		$allocation = null;
+		$node = null;
 
-		// Check if allocation is already in use
-		$existingServer = Server::getServerByAllocationId($data['allocation']['default']);
-		if ($existingServer) {
-			return ApiResponse::sendManualResponse([
-				'errors' => [
-					[
-						'code' => 'ValidationException',
-						'status' => '422',
-						'detail' => 'The request data was invalid or malformed.',
-						'meta' => [
-							'source_field' => 'allocation.default'
+		if ($hasAllocation) {
+			// Direct allocation assignment
+			if (!isset($data['allocation']['default'])) {
+				$logger->error('Missing required allocation default');
+				return ApiResponse::sendManualResponse([
+					'errors' => [
+						[
+							'code' => 'ValidationException',
+							'status' => '422',
+							'detail' => 'The request data was invalid or malformed.',
+							'meta' => [
+								'source_field' => 'allocation.default'
+							]
 						]
 					]
-				]
-			], 422);
-		}
+				], 422);
+			}
 
-		// Get node from allocation
-		$node = Node::getNodeById($allocation['node_id']);
-		if (!$node) {
-			return ApiResponse::sendManualResponse([
-				'errors' => [
-					[
-						'code' => 'ValidationException',
-						'status' => '422',
-						'detail' => 'The request data was invalid or malformed.',
-						'meta' => [
-							'source_field' => 'allocation.default'
+			// Validate allocation exists
+			$allocation = Allocation::getAllocationById($data['allocation']['default']);
+			if (!$allocation) {
+				$logger->error('Allocation not found: ' . $data['allocation']['default']);
+				return ApiResponse::sendManualResponse([
+					'errors' => [
+						[
+							'code' => 'ValidationException',
+							'status' => '422',
+							'detail' => 'The request data was invalid or malformed.',
+							'meta' => [
+								'source_field' => 'allocation.default'
+							]
 						]
 					]
-				]
-			], 422);
+				], 422);
+			}
+
+			// Check if allocation is already in use
+			$existingServer = Server::getServerByAllocationId($data['allocation']['default']);
+			if ($existingServer) {
+				$logger->error('Allocation already in use: ' . $data['allocation']['default']);
+				return ApiResponse::sendManualResponse([
+					'errors' => [
+						[
+							'code' => 'ValidationException',
+							'status' => '422',
+							'detail' => 'The request data was invalid or malformed.',
+							'meta' => [
+								'source_field' => 'allocation.default'
+							]
+						]
+					]
+				], 422);
+			}
+
+			// Get node from allocation
+			$node = Node::getNodeById($allocation['node_id']);
+			if (!$node) {
+				$logger->error('Node not found: ' . $allocation['node_id']);
+				return ApiResponse::sendManualResponse([
+					'errors' => [
+						[
+							'code' => 'ValidationException',
+							'status' => '422',
+							'detail' => 'The request data was invalid or malformed.',
+							'meta' => [
+								'source_field' => 'allocation.default'
+							]
+						]
+					]
+				], 422);
+			}
+		} elseif ($hasDeploy) {
+			// Deploy object with locations - find available allocation
+			if (!isset($data['deploy']['locations']) || !is_array($data['deploy']['locations']) || empty($data['deploy']['locations'])) {
+				$logger->error('Missing or invalid deploy locations');
+				return ApiResponse::sendManualResponse([
+					'errors' => [
+						[
+							'code' => 'ValidationException',
+							'status' => '422',
+							'detail' => 'The request data was invalid or malformed.',
+							'meta' => [
+								'source_field' => 'deploy.locations'
+							]
+						]
+					]
+				], 422);
+			}
+
+			// Find available allocation from specified locations
+			$allocation = $this->findAvailableAllocation($data['deploy']['locations'], $logger);
+			if (!$allocation) {
+				$logger->error('No available allocations found in specified locations');
+				return ApiResponse::sendManualResponse([
+					'errors' => [
+						[
+							'code' => 'ValidationException',
+							'status' => '422',
+							'detail' => 'No available allocations found in the specified locations.',
+							'meta' => [
+								'source_field' => 'deploy.locations'
+							]
+						]
+					]
+				], 422);
+			}
+
+			// Get node from allocation
+			$node = Node::getNodeById($allocation['node_id']);
+			if (!$node) {
+				$logger->error('Node not found: ' . $allocation['node_id']);
+				return ApiResponse::sendManualResponse([
+					'errors' => [
+						[
+							'code' => 'ValidationException',
+							'status' => '422',
+							'detail' => 'The request data was invalid or malformed.',
+							'meta' => [
+								'source_field' => 'deploy.locations'
+							]
+						]
+					]
+				], 422);
+			}
 		}
 
 		// Validate resource limits
 		if ($data['limits']['memory'] < 128) {
+			$logger->error('Memory limit too low: ' . $data['limits']['memory']);
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1414,6 +1493,7 @@ class ServersController
 			], 422);
 		}
 		if ($data['limits']['disk'] < 1024) {
+			$logger->error('Disk limit too low: ' . $data['limits']['disk']);
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1428,6 +1508,7 @@ class ServersController
 			], 422);
 		}
 		if ($data['limits']['io'] < 10) {
+			$logger->error('IO limit too low: ' . $data['limits']['io']);
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1442,6 +1523,7 @@ class ServersController
 			], 422);
 		}
 		if ($data['limits']['cpu'] < 10) {
+			$logger->error('CPU limit too low: ' . $data['limits']['cpu']);
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1462,7 +1544,7 @@ class ServersController
 			'description' => $data['description'] ?? 'Default description',
 			'owner_id' => $data['user'],
 			'node_id' => $node['id'],
-			'allocation_id' => $data['allocation']['default'],
+			'allocation_id' => $allocation['id'],
 			'realms_id' => $spell['realm_id'],
 			'spell_id' => $data['egg'],
 			'memory' => $data['limits']['memory'],
@@ -1479,7 +1561,7 @@ class ServersController
 			'image' => $data['docker_image'] ?? ($spell['docker_images'] ? json_decode($spell['docker_images'], true)[array_key_first(json_decode($spell['docker_images'], true))] ?? '' : ''),
 			'status' => 'installing',
 			'skip_scripts' => 0,
-			'external_id' => null,
+			'external_id' => $data['external_id'] ?? null,
 		];
 
 		// Generate UUIDs
@@ -1489,6 +1571,7 @@ class ServersController
 		// Create server in database
 		$serverId = Server::createServer($serverData);
 		if (!$serverId) {
+			$logger->error('Failed to create server in database');
 			return ApiResponse::sendManualResponse([
 				'errors' => [
 					[
@@ -1501,8 +1584,9 @@ class ServersController
 		}
 
 		// Claim the allocation for this server
-		$allocationClaimed = Allocation::assignToServer($data['allocation']['default'], $serverId);
+		$allocationClaimed = Allocation::assignToServer($allocation['id'], $serverId);
 		if (!$allocationClaimed) {
+			$logger->error('Failed to claim allocation for server ID: ' . $serverId);
 			App::getInstance(true)->getLogger()->error('Failed to claim allocation for server ID: ' . $serverId);
 		}
 
@@ -1532,6 +1616,7 @@ class ServersController
 			if (!empty($variables)) {
 				$variablesCreated = ServerVariable::createOrUpdateServerVariables($serverId, $variables);
 				if (!$variablesCreated) {
+					$logger->error('Failed to create server variables for server ID: ' . $serverId);
 					App::getInstance(true)->getLogger()->error('Failed to create server variables for server ID: ' . $serverId);
 				}
 			}
@@ -1556,7 +1641,7 @@ class ServersController
 			if (!$response->isSuccessful()) {
 				// Delete the server from database if Wings creation fails
 				Server::hardDeleteServer($serverId);
-				Allocation::unassignFromServer($data['allocation']['default']);
+				Allocation::unassignFromServer($allocation['id']);
 
 				return ApiResponse::sendManualResponse([
 					'errors' => [
@@ -1569,10 +1654,11 @@ class ServersController
 				], 500);
 			}
 		} catch (\Exception $e) {
+			$logger->error('Failed to create server in Wings: ' . $e->getMessage());
 			App::getInstance(true)->getLogger()->error('Failed to create server in Wings: ' . $e->getMessage());
 			// Delete the server from database if Wings creation fails
 			Server::hardDeleteServer($serverId);
-			Allocation::unassignFromServer($data['allocation']['default']);
+			Allocation::unassignFromServer($allocation['id']);
 
 			return ApiResponse::sendManualResponse([
 				'errors' => [
@@ -1601,6 +1687,7 @@ class ServersController
 
 		// Get environment variables for the server
 		$pdo = App::getInstance(true)->getDatabase()->getPdo();
+		$logger->debug('Getting environment variables for server ID: ' . $serverId);
 		$variablesSql = "SELECT 
 			sv.variable_value,
 			spv.env_variable,
@@ -1615,6 +1702,7 @@ class ServersController
 		$variables = $variablesStmt->fetchAll(\PDO::FETCH_ASSOC);
 
 		// Get default variables for the egg
+		$logger->debug('Getting default variables for egg ID: ' . $data['egg']);
 		$defaultVarsSql = "SELECT env_variable, default_value 
 			FROM " . self::SPELL_VARIABLES_TABLE . " 
 			WHERE spell_id = :spell_id 
@@ -1630,6 +1718,7 @@ class ServersController
 		$defaultVars = $defaultStmt->fetchAll(\PDO::FETCH_ASSOC);
 
 		// Build environment variables
+		$logger->debug('Building environment variables for server ID: ' . $serverId);
 		$environment = [];
 		foreach ($defaultVars as $var) {
 			if ($var['env_variable'] && $var['default_value'] !== null) {
@@ -1637,6 +1726,7 @@ class ServersController
 			}
 		}
 
+		$logger->debug('Building environment variables for server ID: ' . $serverId);
 		foreach ($variables as $variable) {
 			if ($variable['env_variable'] && $variable['variable_value'] !== null) {
 				$environment[$variable['env_variable']] = $variable['variable_value'];
@@ -1680,6 +1770,7 @@ class ServersController
 				'panel_url' => $config->getSetting(ConfigInterface::APP_URL, 'featherpanel.mythical.systems') . '/dashboard',
 			]);
 		} catch (\Exception $e) {
+			$logger->error('Failed to send server created email: ' . $e->getMessage());
 			App::getInstance(true)->getLogger()->error('Failed to send server created email: ' . $e->getMessage());
 			// Note: We don't fail the server creation if email fails, just log the error
 		}
@@ -3118,5 +3209,36 @@ class ServersController
 		}
 
 		return ApiResponse::sendManualResponse($response, 200);
+	}
+
+	/**
+	 * Find an available allocation from the specified locations
+	 */
+	private function findAvailableAllocation($locationIds, $logger)
+	{
+		$pdo = App::getInstance(true)->getDatabase()->getPdo();
+
+		// Build placeholders for the IN clause
+		$placeholders = str_repeat('?,', count($locationIds) - 1) . '?';
+
+		// Query to find available allocations in the specified locations
+		$sql = "SELECT a.* FROM featherpanel_allocations a
+				INNER JOIN featherpanel_nodes n ON a.node_id = n.id
+				WHERE n.location_id IN ($placeholders)
+				AND a.server_id IS NULL
+				ORDER BY a.id ASC
+				LIMIT 1";
+
+		$stmt = $pdo->prepare($sql);
+		$stmt->execute($locationIds);
+		$allocation = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+		if ($allocation) {
+			$logger->debug('Found available allocation: ' . $allocation['id'] . ' in location: ' . $allocation['ip'] . ':' . $allocation['port']);
+			return $allocation;
+		}
+
+		$logger->debug('No available allocations found in locations: ' . implode(', ', $locationIds));
+		return null;
 	}
 }
