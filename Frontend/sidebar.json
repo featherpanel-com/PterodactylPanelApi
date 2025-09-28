@@ -1,0 +1,14 @@
+{
+	"dashboard": {},
+	"admin": {
+		"/api-keys": {
+			"name": "API Keys",
+			"icon": "\u1F511",
+			"js": "if (window.PterodactylPanelApiPlugin) { window.PterodactylPanelApiPlugin.openApiKeysManager(); } else { console.log('PterodactylPanelApi plugin not loaded'); }",
+			"description": "Manage and generate API keys for the PterodactylPanelApi plugin",
+			"category": "admin",
+			"permission": "admin.plugin.api_keys"
+		}
+	},
+	"server": {}
+}

@@ -1,0 +1,330 @@
+/* ===============================================
+PterodactylPanelApi Plugin - Frontend CSS
+=============================================== */
+
+/*
+Design tokens
+*/
+:root {
+	--papi-bg: #ffffff;
+	--papi-surface: #f8fafc;
+	--papi-surface-2: #f3f4f6;
+	--papi-text: #0f172a;
+	--papi-text-muted: #64748b;
+	--papi-border: #e5e7eb;
+	--papi-primary: #3b82f6;
+	--papi-primary-600: #2563eb;
+	--papi-danger: #ef4444;
+	--papi-danger-600: #dc2626;
+	--papi-secondary: #6b7280;
+	--papi-secondary-600: #4b5563;
+	--papi-green-100: #d1fae5;
+	--papi-green-800: #065f46;
+	--papi-amber-100: #fef3c7;
+	--papi-amber-800: #92400e;
+	--papi-red-100: #fee2e2;
+	--papi-red-800: #991b1b;
+	--papi-radius: 12px;
+	--papi-radius-sm: 8px;
+	--papi-shadow: 0 20px 25px -5px rgba(0, 0, 0, .1), 0 10px 10px -5px rgba(0, 0, 0, .04);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--papi-bg: #0b1220;
+		--papi-surface: #0f172a;
+		--papi-surface-2: #111827;
+		--papi-text: #f8fafc;
+		--papi-text-muted: #94a3b8;
+		--papi-border: #374151;
+		--papi-shadow: 0 20px 25px -5px rgba(0, 0, 0, .5), 0 10px 10px -5px rgba(0, 0, 0, .4);
+	}
+}
+
+/*
+Modal layout
+*/
+.PterodactylPanelApi-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, .5);
+	backdrop-filter: blur(6px);
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	animation: papi-fade-in .2s ease-out;
+}
+
+.PterodactylPanelApi-modal {
+	position: relative;
+	margin: 120px auto;
+	background: var(--papi-bg);
+	color: var(--papi-text);
+	border-radius: var(--papi-radius);
+	box-shadow: var(--papi-shadow);
+	width: 100%;
+	max-width: 680px;
+	max-height: 90vh;
+	overflow: auto;
+	animation: papi-slide-up .25s ease-out;
+	border: 1px solid var(--papi-border);
+	display: flex;
+	flex-direction: column;
+}
+
+.PterodactylPanelApi-modal-header {
+	padding: 20px 22px 14px 22px;
+	border-bottom: 1px solid var(--papi-border);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.PterodactylPanelApi-modal-title {
+	font-size: 1.125rem;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.PterodactylPanelApi-modal-close {
+	background: transparent;
+	border: none;
+	font-size: 1.5rem;
+	cursor: pointer;
+	color: var(--papi-secondary);
+	padding: 4px;
+	border-radius: 6px;
+}
+
+.PterodactylPanelApi-modal-close:hover {
+	background: var(--papi-surface-2);
+	color: var(--papi-text);
+}
+
+.PterodactylPanelApi-modal-content {
+	padding: 20px 22px;
+	flex: 1 1 auto;
+	overflow-y: auto;
+}
+
+/*
+Toolbar and controls
+*/
+.PterodactylPanelApi-toolbar {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	margin-bottom: 14px;
+}
+
+.PterodactylPanelApi-input {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid var(--papi-border);
+	background: var(--papi-surface);
+	color: var(--papi-text);
+	border-radius: 8px;
+}
+
+.PterodactylPanelApi-input:focus {
+	outline: 2px solid var(--papi-primary-600);
+	outline-offset: 1px;
+}
+
+/*
+Cards & content blocks
+*/
+.PterodactylPanelApi-card {
+	background: var(--papi-surface);
+	border: 1px solid var(--papi-border);
+	border-radius: var(--papi-radius-sm);
+	padding: 16px;
+	margin-bottom: 16px;
+}
+
+.PterodactylPanelApi-card h3 {
+	margin: 0 0 8px 0;
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+.PterodactylPanelApi-card p {
+	margin: 0;
+	color: var(--papi-text-muted);
+	font-size: .9rem;
+}
+
+/*
+Buttons
+*/
+.PterodactylPanelApi-button {
+	background: var(--papi-primary);
+	color: #fff;
+	border: none;
+	padding: 8px 16px;
+	border-radius: 8px;
+	cursor: pointer;
+	font-size: .9rem;
+	font-weight: 600;
+	transition: background .2s, transform .05s;
+}
+
+.PterodactylPanelApi-button:hover {
+	background: var(--papi-primary-600);
+}
+
+.PterodactylPanelApi-button:active {
+	transform: translateY(1px);
+}
+
+.PterodactylPanelApi-button.secondary {
+	background: var(--papi-secondary);
+}
+
+.PterodactylPanelApi-button.secondary:hover {
+	background: var(--papi-secondary-600);
+}
+
+.PterodactylPanelApi-button.danger {
+	background: var(--papi-danger);
+}
+
+.PterodactylPanelApi-button.danger:hover {
+	background: var(--papi-danger-600);
+}
+
+/*
+Status badges
+*/
+.PterodactylPanelApi-status {
+	display: inline-block;
+	padding: 4px 8px;
+	border-radius: 999px;
+	font-size: .75rem;
+	font-weight: 600;
+}
+
+.PterodactylPanelApi-status.secure {
+	background: var(--papi-green-100);
+	color: var(--papi-green-800);
+}
+
+.PterodactylPanelApi-status.warning {
+	background: var(--papi-amber-100);
+	color: var(--papi-amber-800);
+}
+
+.PterodactylPanelApi-status.danger {
+	background: var(--papi-red-100);
+	color: var(--papi-red-800);
+}
+
+/*
+Grid helpers
+*/
+.PterodactylPanelApi-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: 16px;
+}
+
+/*
+Table
+*/
+.PterodactylPanelApi-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.PterodactylPanelApi-table th,
+.PterodactylPanelApi-table td {
+	padding: 12px 14px;
+	border-bottom: 1px solid var(--papi-border);
+	text-align: left;
+}
+
+.PterodactylPanelApi-table thead tr {
+	background: var(--papi-surface-2);
+}
+
+.PterodactylPanelApi-table tbody tr:hover {
+	background: rgba(59, 130, 246, .06);
+}
+
+.PterodactylPanelApi-actions {
+	text-align: right;
+	white-space: nowrap;
+}
+
+/*
+Form layout
+*/
+.PterodactylPanelApi-form-group {
+	margin-bottom: 14px;
+}
+
+.PterodactylPanelApi-label {
+	display: block;
+	font-weight: 700;
+	margin-bottom: 6px;
+}
+
+.PterodactylPanelApi-field {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid var(--papi-border);
+	background: var(--papi-bg);
+	color: var(--papi-text);
+	border-radius: 8px;
+}
+
+.PterodactylPanelApi-field:focus {
+	outline: 2px solid var(--papi-primary-600);
+	outline-offset: 1px;
+}
+
+.PterodactylPanelApi-form-actions {
+	text-align: right;
+}
+
+/*
+Pagination
+*/
+.PterodactylPanelApi-pagination {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-top: 12px;
+	color: var(--papi-text-muted);
+	font-size: .9rem;
+}
+
+/*
+Animations
+*/
+@keyframes papi-fade-in {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes papi-slide-up {
+	from {
+		opacity: 0;
+		transform: translateY(18px) scale(.98);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+/* (removed draggable window styles to keep it simple) */

@@ -1,0 +1,27 @@
+plugin:
+  name: "PterodactylPanelApi"
+  identifier: pterodactylpanelapi
+  description: "Bring back the old pterodactyl api to featherpanel!"
+  flags:
+    - hasEvents
+    - hasInstallScript
+    - hasRemovalScript
+  version: 1.0.0
+  target: v2
+  author:
+    - NaysKutzu
+    - "MythicalSystems Studios"
+  icon: "https://cdn.mythical.systems/featherpanel/logo.png"
+  requiredConfigs:
+    - test
+  dependencies:
+    - php=8.4
+    - php-ext=json
+config:
+  - name: test
+    display_name: test
+    type: text
+    description: das
+    required: true
+    validation: {}
+    default: das
