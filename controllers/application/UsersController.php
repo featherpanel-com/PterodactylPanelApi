@@ -469,7 +469,6 @@ class UsersController
 		// Parse include parameter
 		$include = $request->query->get('include', '');
 		$includeServers = in_array('servers', explode(',', $include), true);
-
 		$pdo = App::getInstance(true)->getDatabase()->getPdo();
 
 		// Build the main query with conditional JOINs
@@ -989,7 +988,6 @@ class UsersController
 	{
 		// Get request data
 		$data = json_decode($request->getContent(), true);
-
 		// Required fields for user creation
 		$requiredFields = ['username', 'first_name', 'last_name', 'email'];
 		$missingFields = [];
@@ -1289,7 +1287,6 @@ class UsersController
 	{
 		// Get request data
 		$data = json_decode($request->getContent(), true);
-
 		// Check if user exists
 		$user = User::getUserById($userId);
 		if (!$user) {
@@ -1437,12 +1434,28 @@ class UsersController
 			unset($data['root_admin']);
 		}
 
-		// Remove fields that shouldn't be updated directly
-		unset($data['two_fa_enabled']);
+		// Only allow the following fields to be updated
+		$allowedFields = [
+			'email',
+			'username',
+			'first_name',
+			'last_name',
+			'password',
+			'language',
+			'root_admin',
+			'external_id'
+		];
+
+		// Remove any fields not in the allowed list
+		foreach ($data as $key => $value) {
+			if (!in_array($key, $allowedFields, true)) {
+				unset($data[$key]);
+			}
+		}
 		unset($data['language']);
 
 		// Update user using the User model
-		$success = User::updateUser($userId, $data);
+		$success = User::updateUser($user['uuid'], $data);
 		if (!$success) {
 			return ApiResponse::sendManualResponse([
 				'errors' => [
