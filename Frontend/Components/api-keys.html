@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pterodactyl API Keys</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="text-gray-100 font-sans min-h-screen">
+    <!-- Windows-style window container -->
+    <div
+      class="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl mx-4 my-4 overflow-hidden"
+    >
+      <!-- Window title bar -->
+      <div
+        class="bg-gray-700 border-b border-gray-600 px-4 py-3 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-3">
+          <div class="flex gap-2">
+            <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+            <div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
+            <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+          </div>
+          <h1 class="text-sm font-medium text-gray-200">
+            Pterodactyl API Keys
+          </h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-200 hover:bg-gray-600 rounded"
+          >
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Window content -->
+      <div class="p-6">
+        <!-- Page Header -->
+        <div class="mb-8">
+          <h2 class="text-2xl font-light mb-2 text-gray-100">
+            API Keys Management
+          </h2>
+          <p class="text-sm text-gray-400">
+            Manage your Pterodactyl Panel API keys for secure application access
+          </p>
+        </div>
+
+        <!-- Important Information Alert -->
+        <div
+          class="flex gap-4 p-4 mb-8 bg-blue-900/30 border-l-4 border-blue-500 rounded-r-lg"
+        >
+          <div
+            class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
+          >
+            <svg
+              class="w-4 h-4 text-white"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-medium mb-3 text-gray-100 text-base">
+              Important Information About API Keys
+            </h3>
+            <ul class="text-sm space-y-2 text-gray-300">
+              <li class="flex items-start">
+                <span
+                  class="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 mr-3 flex-shrink-0"
+                ></span>
+                API keys are persistent and remain valid until manually deleted
+              </li>
+              <li class="flex items-start">
+                <span
+                  class="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 mr-3 flex-shrink-0"
+                ></span>
+                API keys provide the same access as your account session
+              </li>
+              <li class="flex items-start">
+                <span
+                  class="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 mr-3 flex-shrink-0"
+                ></span>
+                Keep your private key secure - it can be used to authenticate
+                requests
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="flex gap-4 items-center justify-between mb-6">
+          <div class="relative flex-1 max-w-md">
+            <svg
+              class="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            <input
+              type="text"
+              id="search-input"
+              class="w-full pl-12 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              placeholder="Search by name..."
+            />
+          </div>
+          <button
+            class="inline-flex items-center gap-3 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium"
+            id="create-btn"
+          >
+            <svg
+              class="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Create API Key
+          </button>
+        </div>
+
+        <!-- Content -->
+        <div
+          class="bg-gray-750 rounded-lg border border-gray-600 overflow-hidden"
+        >
+          <div class="overflow-x-auto">
+            <div id="table-content">
+              <!-- Loading State -->
+              <div class="p-16 text-center">
+                <div class="inline-flex items-center gap-3 text-gray-400">
+                  <div
+                    class="w-5 h-5 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin"
+                  ></div>
+                  <p class="text-base">Loading API keys...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div
+            class="flex items-center justify-between px-6 py-4 bg-gray-700/50 border-t border-gray-600"
+            id="pagination"
+            style="display: none"
+          >
+            <div class="text-sm text-gray-300" id="pagination-info">
+              Showing 0-0 of 0
+            </div>
+            <div class="flex gap-2">
+              <button
+                class="inline-flex items-center px-4 py-2 text-sm bg-gray-700 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                id="prev-btn"
+                disabled
+              >
+                Previous
+              </button>
+              <button
+                class="inline-flex items-center px-4 py-2 text-sm bg-gray-700 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                id="next-btn"
+                disabled
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // State management
+      const state = {
+        items: [],
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalRecords: 0,
+        query: "",
+        loading: false,
+      };
+
+      // Utility functions
+      function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function maskKey(value) {
+        if (!value) return "";
+        if (value.length <= 8)
+          return "*".repeat(Math.max(0, value.length - 2)) + value.slice(-2);
+        return value.slice(0, 4) + "••••" + value.slice(-4);
+      }
+
+      function formatDate(dateStr) {
+        if (!dateStr) return "Never";
+        return new Date(dateStr).toLocaleString();
+      }
+
+      // API calls
+      async function fetchApiKeys() {
+        const url = new URL(
+          "/api/pterodactylpanelapi/api-keys",
+          window.location.origin
+        );
+        url.searchParams.set("page", String(state.page));
+        url.searchParams.set("limit", String(state.limit));
+        if (state.query) {
+          url.searchParams.set("search", state.query);
+        }
+
+        const res = await fetch(url.toString(), { credentials: "include" });
+        const data = await res.json();
+
+        if (!res.ok || data.success === false) {
+          throw new Error(data?.message || "Failed to load API keys");
+        }
+
+        state.items = data.data.keys || [];
+        const p = data.data.pagination || {};
+        state.totalPages = p.total_pages || 1;
+        state.totalRecords = p.total_records || 0;
+      }
+
+      async function createApiKey(payload) {
+        const res = await fetch("/api/pterodactylpanelapi/api-keys", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || data.success === false) {
+          throw new Error(data?.message || "Failed to create API key");
+        }
+        return data;
+      }
+
+      async function updateApiKey(id, payload) {
+        const res = await fetch(`/api/pterodactylpanelapi/api-keys/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || data.success === false) {
+          throw new Error(data?.message || "Failed to update API key");
+        }
+        return data;
+      }
+
+      async function deleteApiKey(id) {
+        const res = await fetch(`/api/pterodactylpanelapi/api-keys/${id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok || data.success === false) {
+          throw new Error(data?.message || "Failed to delete API key");
+        }
+        return data;
+      }
+
+      // Key generation
+      function generateKey() {
+        const alphabet =
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        const length = 48;
+        let body = "";
+        for (let i = 0; i < length; i++) {
+          body += alphabet[Math.floor(Math.random() * alphabet.length)];
+        }
+        return "ptla_" + body;
+      }
+
+      // Render functions
+      function renderTable() {
+        const content = document.getElementById("table-content");
+        const pagination = document.getElementById("pagination");
+        const paginationInfo = document.getElementById("pagination-info");
+
+        // Update pagination info
+        const from =
+          state.totalRecords === 0 ? 0 : (state.page - 1) * state.limit + 1;
+        const to = Math.min(from + state.limit - 1, state.totalRecords);
+        paginationInfo.textContent = `Showing ${from}-${to} of ${state.totalRecords}`;
+        pagination.style.display = "flex";
+
+        // Update pagination buttons
+        document.getElementById("prev-btn").disabled = state.page <= 1;
+        document.getElementById("next-btn").disabled =
+          state.page >= state.totalPages;
+
+        if (state.items.length === 0) {
+          content.innerHTML = `
+            <div class="p-16 text-center">
+              <div class="w-16 h-16 mx-auto mb-6 bg-gray-700 rounded-full flex items-center justify-center">
+                <svg class="w-8 h-8 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+              <h3 class="text-xl font-medium mb-3 text-gray-100">No API keys found</h3>
+              <p class="text-base text-gray-400">
+                ${
+                  state.query
+                    ? "Try adjusting your search"
+                    : "Get started by creating your first API key"
+                }
+              </p>
+            </div>
+          `;
+          return;
+        }
+
+        const rows = state.items
+          .map(
+            (key) => `
+          <tr class="border-b border-gray-700 hover:bg-gray-700/50 transition-colors duration-150">
+            <td class="px-6 py-4">
+              <div class="font-medium text-gray-100">${escapeHtml(
+                key.name
+              )}</div>
+            </td>
+            <td class="px-6 py-4">
+              <div class="font-mono text-sm text-gray-300 bg-gray-700 px-3 py-1 rounded-md inline-block">${maskKey(
+                key.key
+              )}</div>
+            </td>
+            <td class="px-6 py-4">
+              <div class="text-sm text-gray-300">${formatDate(
+                key.last_used
+              )}</div>
+            </td>
+            <td class="px-6 py-4">
+              <div class="flex gap-2 justify-end">
+                <button class="inline-flex items-center gap-2 px-4 py-2 text-sm bg-gray-700 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200" onclick="editKey(${
+                  key.id
+                })">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Edit
+                </button>
+                <button class="inline-flex items-center gap-2 px-4 py-2 text-sm bg-red-600 border border-red-500 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200" onclick="confirmDeleteKey(${
+                  key.id
+                }, '${escapeHtml(key.name)}')">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3,6 5,6 21,6" />
+                    <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6" />
+                  </svg>
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+        `
+          )
+          .join("");
+
+        content.innerHTML = `
+          <table class="w-full">
+            <thead class="bg-gray-700 border-b border-gray-600">
+              <tr>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-300 uppercase tracking-wider">Name</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-300 uppercase tracking-wider">Key</th>
+                <th class="text-left px-6 py-4 text-xs font-semibold text-gray-300 uppercase tracking-wider">Last Used</th>
+                <th class="text-right px-6 py-4 text-xs font-semibold text-gray-300 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-gray-800 divide-y divide-gray-700">
+              ${rows}
+            </tbody>
+          </table>
+        `;
+      }
+
+      function renderError(message) {
+        const content = document.getElementById("table-content");
+        content.innerHTML = `<div class="p-16 text-center"><div class="w-16 h-16 mx-auto mb-6 bg-red-900/30 rounded-full flex items-center justify-center"><svg class="w-8 h-8 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><h3 class="text-xl font-medium mb-3 text-gray-100">Error</h3><p class="text-base text-red-400">${escapeHtml(
+          message
+        )}</p></div>`;
+        document.getElementById("pagination").style.display = "none";
+      }
+
+      // Load data
+      async function loadData() {
+        state.loading = true;
+        renderTable();
+
+        try {
+          await fetchApiKeys();
+          renderTable();
+        } catch (error) {
+          renderError(error.message);
+        } finally {
+          state.loading = false;
+        }
+      }
+
+      // Modal management
+      function showModal(title, content) {
+        const overlay = document.createElement("div");
+        overlay.className =
+          "fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300";
+        overlay.id = "modal-overlay";
+
+        overlay.innerHTML = `
+          <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-100">
+            <div class="flex items-center justify-between p-6 border-b border-gray-700">
+              <h2 class="text-xl font-medium text-gray-100">${title}</h2>
+              <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors duration-200" onclick="closeModal()">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <div class="p-6">
+              ${content}
+            </div>
+          </div>
+        `;
+
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        document.body.appendChild(overlay);
+
+        document.addEventListener("keydown", handleEscapeKey);
+      }
+
+      function handleEscapeKey(e) {
+        if (e.key === "Escape") closeModal();
+      }
+
+      function closeModal() {
+        const overlay = document.getElementById("modal-overlay");
+        if (overlay) {
+          overlay.remove();
+          document.removeEventListener("keydown", handleEscapeKey);
+        }
+      }
+
+      // Form handlers
+      function showCreateForm() {
+        const content = `
+          <div class="space-y-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-3">API Key Type</label>
+              <select id="form-type" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                <option value="admin">Admin API Key</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-3">Name</label>
+              <input id="form-name" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" type="text" placeholder="My API Key" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-3">API Key</label>
+              <div class="flex gap-3">
+                <input id="form-key" class="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" type="text" placeholder="ptla_..." />
+                <button class="px-4 py-3 bg-gray-600 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium" onclick="document.getElementById('form-key').value = generateKey()">Generate</button>
+              </div>
+            </div>
+            <div class="flex gap-3 justify-end pt-6 border-t border-gray-700">
+              <button class="px-6 py-3 bg-gray-700 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium" onclick="closeModal()">Cancel</button>
+              <button class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium" onclick="handleCreateSubmit()">Create</button>
+            </div>
+          </div>
+        `;
+        showModal("Create API Key", content);
+      }
+
+      async function handleCreateSubmit() {
+        const name = document.getElementById("form-name").value.trim();
+        const key = document.getElementById("form-key").value.trim();
+
+        if (!name || !key) {
+          alert("Name and Key are required");
+          return;
+        }
+
+        try {
+          await createApiKey({ name, key });
+          closeModal();
+          await loadData();
+        } catch (error) {
+          alert(error.message);
+        }
+      }
+
+      function editKey(id) {
+        const key = state.items.find((k) => k.id === id);
+        if (!key) return;
+
+        const content = `
+          <div class="space-y-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-3">API Key Type</label>
+              <select id="form-type" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                <option value="admin">Admin API Key</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-3">Name</label>
+              <input id="form-name" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" type="text" value="${escapeHtml(
+                key.name
+              )}" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-3">API Key</label>
+              <div class="flex gap-3">
+                <input id="form-key" class="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" type="text" value="${escapeHtml(
+                  key.key
+                )}" />
+                <button class="px-4 py-3 bg-gray-600 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium" onclick="document.getElementById('form-key').value = generateKey()">Generate</button>
+              </div>
+            </div>
+            <div class="flex gap-3 justify-end pt-6 border-t border-gray-700">
+              <button class="px-6 py-3 bg-gray-700 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium" onclick="closeModal()">Cancel</button>
+              <button class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium" onclick="handleEditSubmit(${id})">Save</button>
+            </div>
+          </div>
+        `;
+        showModal("Edit API Key", content);
+      }
+
+      async function handleEditSubmit(id) {
+        const name = document.getElementById("form-name").value.trim();
+        const key = document.getElementById("form-key").value.trim();
+
+        if (!name || !key) {
+          alert("Name and Key are required");
+          return;
+        }
+
+        try {
+          await updateApiKey(id, { name, key });
+          closeModal();
+          await loadData();
+        } catch (error) {
+          alert(error.message);
+        }
+      }
+
+      function confirmDeleteKey(id, name) {
+        const content = `
+          <div class="space-y-4">
+            <p class="text-sm text-gray-300">Are you sure you want to delete the API key <strong class="text-gray-100">"${escapeHtml(
+              name
+            )}"</strong>? This action cannot be undone.</p>
+            <div class="flex gap-3 justify-end pt-4 border-t border-gray-700">
+              <button class="px-6 py-3 bg-gray-700 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 font-medium" onclick="closeModal()">Cancel</button>
+              <button class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 font-medium" onclick="handleDelete(${id})">Delete</button>
+            </div>
+          </div>
+        `;
+        showModal("Delete API Key", content);
+      }
+
+      async function handleDelete(id) {
+        try {
+          await deleteApiKey(id);
+          closeModal();
+          await loadData();
+        } catch (error) {
+          alert(error.message);
+        }
+      }
+
+      // Event listeners
+      document.getElementById("search-input").addEventListener("input", (e) => {
+        state.query = e.target.value;
+        state.page = 1;
+        loadData();
+      });
+
+      document
+        .getElementById("create-btn")
+        .addEventListener("click", showCreateForm);
+
+      document.getElementById("prev-btn").addEventListener("click", () => {
+        if (state.page > 1) {
+          state.page--;
+          loadData();
+        }
+      });
+
+      document.getElementById("next-btn").addEventListener("click", () => {
+        if (state.page < state.totalPages) {
+          state.page++;
+          loadData();
+        }
+      });
+
+      // Initialize
+      loadData();
+    </script>
+  </body>
+</html>
