@@ -850,7 +850,7 @@ class SchedulesController extends ServersController
         return new Response('', 204);
     }
 
-    private function resolveSchedule(array $server, string $scheduleId): array|Response
+    private function resolveSchedule(array $server, string $scheduleId): array | Response
     {
         if (!ctype_digit($scheduleId)) {
             return $this->notFoundError('Schedule');
@@ -864,7 +864,7 @@ class SchedulesController extends ServersController
         return $schedule;
     }
 
-    private function resolveTask(array $schedule, string $taskId): array|Response
+    private function resolveTask(array $schedule, string $taskId): array | Response
     {
         if (!ctype_digit($taskId)) {
             return $this->notFoundError('Task');

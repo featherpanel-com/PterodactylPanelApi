@@ -437,7 +437,7 @@ class AllocationsController extends ServersController
         return new Response('', 204);
     }
 
-    private function resolveAllocation(array $server, string $allocationId): array|Response
+    private function resolveAllocation(array $server, string $allocationId): array | Response
     {
         if (!ctype_digit($allocationId)) {
             return $this->notFoundError('Allocation');
@@ -463,7 +463,7 @@ class AllocationsController extends ServersController
             if (!$response->isSuccessful()) {
                 return $this->daemonErrorResponse($response->getStatusCode(), $response->getError());
             }
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to sync server allocations: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);

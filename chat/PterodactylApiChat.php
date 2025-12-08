@@ -179,7 +179,7 @@ class PterodactylApiChat
      *
      * @return int|false the ID of the API key
      */
-    public static function create(array $data): int|false
+    public static function create(array $data): int | false
     {
         $fields = ['name', 'key', 'type', 'last_used', 'created_by'];
         $insert = [];

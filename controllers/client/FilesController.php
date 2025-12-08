@@ -95,7 +95,7 @@ class FilesController extends ServersController
 
         try {
             $response = $wings->getServer()->listDirectory((string) $context['server']['uuid'], $directory);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to list files on Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -178,7 +178,7 @@ class FilesController extends ServersController
 
         try {
             $response = $wings->getServer()->getFileContentsRaw((string) $context['server']['uuid'], $filePath, false);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to fetch file contents from Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -381,7 +381,7 @@ class FilesController extends ServersController
 
         try {
             $response = $wings->getServer()->renameFiles((string) $context['server']['uuid'], $root, $operations);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to rename files on Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -487,7 +487,7 @@ class FilesController extends ServersController
 
         try {
             $response = $wings->getServer()->copyFiles((string) $context['server']['uuid'], $location, $files);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to copy files on Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -582,7 +582,7 @@ class FilesController extends ServersController
 
         try {
             $response = $wings->getServer()->writeFile((string) $context['server']['uuid'], $filePath, $content);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to write file on Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -689,7 +689,7 @@ class FilesController extends ServersController
                 $name,
                 $extension
             );
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to compress files on Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -784,7 +784,7 @@ class FilesController extends ServersController
 
         try {
             $response = $wings->getServer()->decompressArchive((string) $context['server']['uuid'], $file, $root);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to decompress archive on Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -878,7 +878,7 @@ class FilesController extends ServersController
 
         try {
             $response = $wings->getServer()->deleteFiles((string) $context['server']['uuid'], $root, $files);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to delete files on Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -968,7 +968,7 @@ class FilesController extends ServersController
 
         try {
             $response = $wings->getServer()->createDirectory((string) $context['server']['uuid'], $name, $root);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to create directory on Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);

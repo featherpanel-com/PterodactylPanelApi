@@ -614,6 +614,19 @@ class NodesController
         $requiredMemory = (int) $request->query->get('memory', 0);
         $requiredDisk = (int) $request->query->get('disk', 0);
 
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        $includeAllocations = false;
+
+        if (is_array($includeParam)) {
+            // Handle array format: include[]=allocations or include=allocations&include=something
+            $includeAllocations = in_array('allocations', $includeParam, true);
+        } elseif (is_string($includeParam)) {
+            // Handle comma-separated string: include=allocations,node
+            $includeAllocations = strpos($includeParam, 'allocations') !== false;
+        }
+
         // Validate pagination parameters
         if ($page < 1) {
             $page = 1;
@@ -699,6 +712,31 @@ class NodesController
                     ],
                 ],
             ];
+
+            // Add relationships if allocations are requested
+            if ($includeAllocations) {
+                $allocations = Allocation::getAll(null, (int) $node['id'], null, 1000, 0);
+                $allocationData = [];
+                foreach ($allocations as $allocation) {
+                    $allocationData[] = [
+                        'object' => 'allocation',
+                        'attributes' => [
+                            'id' => (int) $allocation['id'],
+                            'ip' => $allocation['ip'],
+                            'alias' => $allocation['ip_alias'],
+                            'port' => (int) $allocation['port'],
+                            'notes' => $allocation['notes'],
+                            'assigned' => (bool) $allocation['server_id'],
+                        ],
+                    ];
+                }
+                $nodeData['attributes']['relationships'] = [
+                    'allocations' => [
+                        'object' => 'list',
+                        'data' => $allocationData,
+                    ],
+                ];
+            }
 
             $data[] = $nodeData;
         }

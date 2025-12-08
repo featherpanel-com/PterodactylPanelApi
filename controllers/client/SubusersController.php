@@ -433,7 +433,7 @@ class SubusersController extends ServersController
     /**
      * @param array<int, string> $permissions
      */
-    private function normalizePermissions(array $permissions): array|Response
+    private function normalizePermissions(array $permissions): array | Response
     {
         if (empty($permissions)) {
             return $this->validationError('permissions', 'At least one permission must be provided.', 'min:1');

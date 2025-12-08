@@ -789,7 +789,13 @@ class ServersController
     )]
     public function show(Request $request, $serverId)
     {
-        $include = $request->get('include', '');
+        // Parse include parameter - can be comma-separated string or array
+        $includeParam = $request->query->get('include', '');
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeServers = !empty($include);
 
         $pdo = App::getInstance(true)->getDatabase()->getPdo();
@@ -1008,7 +1014,13 @@ class ServersController
     )]
     public function showExternal(Request $request, $externalId)
     {
-        $include = $request->get('include', '');
+        // Parse include parameter - can be comma-separated string or array
+        $includeParam = $request->query->get('include', '');
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeServers = !empty($include);
 
         $pdo = App::getInstance(true)->getDatabase()->getPdo();
@@ -1508,72 +1520,6 @@ class ServersController
                     ],
                 ], 422);
             }
-        }
-
-        // Validate resource limits
-        if ($data['limits']['memory'] < 128) {
-            $logger->error('Memory limit too low: ' . $data['limits']['memory']);
-
-            return ApiResponse::sendManualResponse([
-                'errors' => [
-                    [
-                        'code' => 'ValidationException',
-                        'status' => '422',
-                        'detail' => 'The request data was invalid or malformed.',
-                        'meta' => [
-                            'source_field' => 'limits.memory',
-                        ],
-                    ],
-                ],
-            ], 422);
-        }
-        if ($data['limits']['disk'] < 1024) {
-            $logger->error('Disk limit too low: ' . $data['limits']['disk']);
-
-            return ApiResponse::sendManualResponse([
-                'errors' => [
-                    [
-                        'code' => 'ValidationException',
-                        'status' => '422',
-                        'detail' => 'The request data was invalid or malformed.',
-                        'meta' => [
-                            'source_field' => 'limits.disk',
-                        ],
-                    ],
-                ],
-            ], 422);
-        }
-        if ($data['limits']['io'] < 10) {
-            $logger->error('IO limit too low: ' . $data['limits']['io']);
-
-            return ApiResponse::sendManualResponse([
-                'errors' => [
-                    [
-                        'code' => 'ValidationException',
-                        'status' => '422',
-                        'detail' => 'The request data was invalid or malformed.',
-                        'meta' => [
-                            'source_field' => 'limits.io',
-                        ],
-                    ],
-                ],
-            ], 422);
-        }
-        if ($data['limits']['cpu'] < 10) {
-            $logger->error('CPU limit too low: ' . $data['limits']['cpu']);
-
-            return ApiResponse::sendManualResponse([
-                'errors' => [
-                    [
-                        'code' => 'ValidationException',
-                        'status' => '422',
-                        'detail' => 'The request data was invalid or malformed.',
-                        'meta' => [
-                            'source_field' => 'limits.cpu',
-                        ],
-                    ],
-                ],
-            ], 422);
         }
 
         // Prepare server data for database
@@ -2162,11 +2108,15 @@ class ServersController
             ], 422);
         }
 
-        // Unclaim the allocation before deleting the server
-        if (isset($server['allocation_id'])) {
-            $allocationUnclaimed = Allocation::unassignFromServer($server['allocation_id']);
-            if (!$allocationUnclaimed) {
-                App::getInstance(true)->getLogger()->error('Failed to unclaim allocation for server ID: ' . $serverId);
+        // Unclaim all allocations (primary + additional) before deleting the server
+        $allAllocations = Allocation::getByServerId($serverId);
+        if (!empty($allAllocations)) {
+            $allocationIds = array_column($allAllocations, 'id');
+            $allocationsUnclaimed = Allocation::unassignMultiple($allocationIds);
+            if (!$allocationsUnclaimed) {
+                App::getInstance(true)->getLogger()->error('Failed to unclaim allocations for server ID: ' . $serverId);
+            } else {
+                App::getInstance(true)->getLogger()->info('Unclaimed ' . count($allocationIds) . ' allocation(s) for server ID: ' . $serverId);
             }
         }
 
@@ -2479,36 +2429,6 @@ class ServersController
             ], 422);
         }
 
-        // Validate limits
-        if ($data['memory'] < 128) {
-            return ApiResponse::sendManualResponse([
-                'errors' => [
-                    [
-                        'code' => 'ValidationException',
-                        'status' => '422',
-                        'detail' => 'The request data was invalid or malformed.',
-                        'meta' => [
-                            'source_field' => 'memory',
-                        ],
-                    ],
-                ],
-            ], 422);
-        }
-        if ($data['disk'] < 1024) {
-            return ApiResponse::sendManualResponse([
-                'errors' => [
-                    [
-                        'code' => 'ValidationException',
-                        'status' => '422',
-                        'detail' => 'The request data was invalid or malformed.',
-                        'meta' => [
-                            'source_field' => 'disk',
-                        ],
-                    ],
-                ],
-            ], 422);
-        }
-
         // Prepare update data
         $updateData = [
             'allocation_id' => $data['allocation'],
@@ -2808,16 +2728,15 @@ class ServersController
                     ],
                 ];
             }
-            if (!empty($allocationData)) {
-                $relationships['allocations'] = [
-                    'object' => 'list',
-                    'data' => $allocationData,
-                ];
-            }
+            // Always include allocations (even if empty)
+            $relationships['allocations'] = [
+                'object' => 'list',
+                'data' => $allocationData,
+            ];
         }
 
-        // Include subusers if requested (always include like Pterodactyl)
-        if (strpos($include, 'subusers') !== false || true) {
+        // Include subusers if requested
+        if (strpos($include, 'subusers') !== false) {
             $subusers = Subuser::getSubusersByServerId((int) $server['id']);
             $subuserData = [];
             foreach ($subusers as $subuser) {
@@ -2833,7 +2752,7 @@ class ServersController
                     ],
                 ];
             }
-            // Always include subusers (even if empty, like Pterodactyl)
+            // Include subusers (even if empty)
             $relationships['subusers'] = [
                 'object' => 'list',
                 'data' => $subuserData,
@@ -2978,8 +2897,8 @@ class ServersController
             }
         }
 
-        // Include databases if requested (always include like Pterodactyl)
-        if (strpos($include, 'databases') !== false || true) {
+        // Include databases if requested
+        if (strpos($include, 'databases') !== false) {
             $databases = ServerDatabase::getDatabasesByServerId((int) $server['id']);
             $databaseData = [];
             foreach ($databases as $database) {
@@ -2998,7 +2917,7 @@ class ServersController
                     ],
                 ];
             }
-            // Always include databases (even if empty, like Pterodactyl)
+            // Include databases (even if empty)
             $relationships['databases'] = [
                 'object' => 'list',
                 'data' => $databaseData,

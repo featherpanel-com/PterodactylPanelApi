@@ -1,3 +1,10 @@
+# 1.0.8
+
+## Fixed
+
+- Server extra allocations don't get unasinged!
+
+
 # 1.0.6
 
 ## Added

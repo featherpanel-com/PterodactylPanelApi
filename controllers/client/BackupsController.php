@@ -304,7 +304,7 @@ class BackupsController extends ServersController
 
                 return $this->daemonErrorResponse($response->getStatusCode(), $response->getError());
             }
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             Backup::deleteBackup($backupId);
             App::getInstance(true)->getLogger()->error('Failed to initiate backup on Wings: ' . $e->getMessage());
 
@@ -501,7 +501,7 @@ class BackupsController extends ServersController
             if (!$response->isSuccessful()) {
                 return $this->daemonErrorResponse($response->getStatusCode(), $response->getError());
             }
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to delete backup via Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -572,7 +572,7 @@ class BackupsController extends ServersController
         return [];
     }
 
-    private function resolveServerBackup(int $serverId, string $backupUuid): array|Response
+    private function resolveServerBackup(int $serverId, string $backupUuid): array | Response
     {
         $backup = Backup::getBackupByUuid($backupUuid);
         if ($backup === null || (int) $backup['server_id'] !== $serverId || ($backup['deleted_at'] ?? null) !== null) {

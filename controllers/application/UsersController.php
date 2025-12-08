@@ -170,7 +170,10 @@ class UsersController
         $perPage = max(1, min($perPage, 100)); // Clamp per_page between 1 and 100
 
         // Safely get filter parameters
-        $filterParams = $request->query->all('filter');
+        // Symfony parses filter[email]=value into nested array automatically
+        // Use all() to get all query params, then extract filter array
+        $allParams = $request->query->all();
+        $filterParams = $allParams['filter'] ?? [];
         if (!is_array($filterParams)) {
             $filterParams = [];
         }
@@ -195,21 +198,31 @@ class UsersController
         $pdo = App::getInstance(true)->getDatabase()->getPdo();
 
         // Build WHERE clause for filters
-        $where = [];
+        // We need separate WHERE clauses: one for COUNT (no alias) and one for main query (with alias if needed)
+        $whereCount = [];
+        $whereMain = [];
         $params = [];
         foreach ($filters as $key => $value) {
             if ($value !== null && $value !== '') {
-                $where[] = "$key = :$key";
+                // COUNT query doesn't use table alias
+                $whereCount[] = "$key = :$key";
+                // Main query uses table alias 'u' when JOINs are present
+                $column = $includeServers ? "u.$key" : $key;
+                $whereMain[] = "$column = :$key";
                 $params[$key] = $value;
             }
         }
-        $whereClause = '';
-        if (!empty($where)) {
-            $whereClause = 'WHERE ' . implode(' AND ', $where);
+        $whereClauseCount = '';
+        if (!empty($whereCount)) {
+            $whereClauseCount = 'WHERE ' . implode(' AND ', $whereCount);
+        }
+        $whereClauseMain = '';
+        if (!empty($whereMain)) {
+            $whereClauseMain = 'WHERE ' . implode(' AND ', $whereMain);
         }
 
         // Count total users
-        $countSql = 'SELECT COUNT(*) FROM ' . self::USERS_TABLE . " $whereClause";
+        $countSql = 'SELECT COUNT(*) FROM ' . self::USERS_TABLE . " $whereClauseCount";
         $stmt = $pdo->prepare($countSql);
         $stmt->execute($params);
         $total = (int) $stmt->fetchColumn();
@@ -259,12 +272,12 @@ class UsersController
 					LEFT JOIN ' . self::SERVERS_TABLE . ' s ON u.id = s.owner_id
 					LEFT JOIN ' . self::SERVERS_TABLE_VARIABLES . ' sv ON s.id = sv.server_id
 					LEFT JOIN ' . self::SPELLS_TABLE_VARIABLES . " spv ON sv.variable_id = spv.id
-					$whereClause 
+					$whereClauseMain 
 					ORDER BY u.$sort, s.id, sv.variable_id
 					LIMIT :limit OFFSET :offset";
         } else {
             // Simple query for users only
-            $sql = 'SELECT * FROM ' . self::USERS_TABLE . " $whereClause ORDER BY $sort LIMIT :limit OFFSET :offset";
+            $sql = 'SELECT * FROM ' . self::USERS_TABLE . " $whereClauseMain ORDER BY $sort LIMIT :limit OFFSET :offset";
         }
 
         $stmt = $pdo->prepare($sql);
@@ -1137,9 +1150,14 @@ class UsersController
             }
         }
 
-        // Hash password if provided
+        // Hash password if provided, otherwise generate a secure random password
         if (!empty($data['password'])) {
             $data['password'] = password_hash($data['password'], PASSWORD_BCRYPT);
+        } else {
+            // Generate a secure random password if none provided (required by User::createUser)
+            // This is common for API-created users who may set their password later
+            $randomPassword = bin2hex(random_bytes(16)); // 32 character hex string
+            $data['password'] = password_hash($randomPassword, PASSWORD_BCRYPT);
         }
 
         // Generate UUID

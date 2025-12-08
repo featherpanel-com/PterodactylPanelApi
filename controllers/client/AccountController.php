@@ -325,7 +325,7 @@ class AccountController
         return new Response('', 204);
     }
 
-    private function resolveClientUser(Request $request): array|Response
+    private function resolveClientUser(Request $request): array | Response
     {
         $keyType = $request->attributes->get('api_key_type');
         if ($keyType === null) {

@@ -467,7 +467,7 @@ class ServersController
                     ],
                 ],
             ], 200);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to fetch resources from Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -562,7 +562,7 @@ class ServersController
             );
 
             return new Response('', 204);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to send command to Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -698,7 +698,7 @@ class ServersController
             );
 
             return new Response('', 204);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to send power signal to Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -859,7 +859,7 @@ class ServersController
             );
 
             return new Response('', 204);
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to reinstall server via Wings: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -1223,7 +1223,7 @@ class ServersController
             if (!$syncResponse->isSuccessful()) {
                 return $this->daemonErrorResponse($syncResponse->getStatusCode(), $syncResponse->getError());
             }
-        } catch (WingsConnectionException|WingsAuthenticationException|WingsRequestException $e) {
+        } catch (WingsConnectionException | WingsAuthenticationException | WingsRequestException $e) {
             App::getInstance(true)->getLogger()->error('Failed to sync server after variable update: ' . $e->getMessage());
 
             return $this->daemonErrorResponse(502);
@@ -1247,7 +1247,7 @@ class ServersController
         return ApiResponse::sendManualResponse($this->formatStartupVariable($target, $value), 200);
     }
 
-    protected function resolveClientUser(Request $request): array|Response
+    protected function resolveClientUser(Request $request): array | Response
     {
         $keyType = $request->attributes->get('api_key_type');
         if ($keyType === null) {
@@ -1315,7 +1315,7 @@ class ServersController
         return $user;
     }
 
-    protected function resolveServerContext(Request $request, string $identifier): array|Response
+    protected function resolveServerContext(Request $request, string $identifier): array | Response
     {
         $userResult = $this->resolveClientUser($request);
         if ($userResult instanceof Response) {
@@ -1733,7 +1733,7 @@ class ServersController
         ], 403);
     }
 
-    protected function createWingsClient(array $server): Wings|Response
+    protected function createWingsClient(array $server): Wings | Response
     {
         $nodeId = (int) ($server['node_id'] ?? 0);
         if ($nodeId <= 0) {
