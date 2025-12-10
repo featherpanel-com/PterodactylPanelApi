@@ -145,7 +145,14 @@ class NestsController
         $paginatedNests = array_slice($nests, $offset, $perPage);
 
         // Check if relationships should be included
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeEggs = strpos($include, 'eggs') !== false;
         $includeServers = strpos($include, 'servers') !== false;
 
@@ -371,7 +378,14 @@ class NestsController
         }
 
         // Check if relationships should be included
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeEggs = strpos($include, 'eggs') !== false;
         $includeServers = strpos($include, 'servers') !== false;
 
@@ -601,7 +615,14 @@ class NestsController
         $paginatedEggs = array_slice($eggs, $offset, $perPage);
 
         // Check if relationships should be included
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeVariables = strpos($include, 'variables') !== false;
         $includeNest = strpos($include, 'nest') !== false;
 
@@ -832,7 +853,14 @@ class NestsController
         }
 
         // Check if relationships should be included
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeVariables = strpos($include, 'variables') !== false;
         $includeNest = strpos($include, 'nest') !== false;
         $includeServers = strpos($include, 'servers') !== false;

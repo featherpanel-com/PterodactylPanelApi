@@ -175,7 +175,14 @@ class DatabasesController
         $totalPages = ceil($total / $perPage);
 
         // Check if relationships should be included
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includePassword = strpos($include, 'password') !== false;
         $includeHost = strpos($include, 'host') !== false;
 
@@ -375,7 +382,14 @@ class DatabasesController
         }
 
         // Check if relationships should be included
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includePassword = strpos($include, 'password') !== false;
         $includeHost = strpos($include, 'host') !== false;
 

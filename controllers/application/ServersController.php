@@ -174,17 +174,27 @@ class ServersController
         $page = (int) $request->query->get('page', 1);
         $perPage = (int) $request->query->get('per_page', 50);
 
-        // Get filter parameters
-        $nameFilter = $request->query->get('filter[name]', '');
-        $uuidFilter = $request->query->get('filter[uuid]', '');
-        $externalIdFilter = $request->query->get('filter[external_id]', '');
-        $imageFilter = $request->query->get('filter[image]', '');
+        // Get filter parameters - handle nested query parameters
+        $allParams = $request->query->all();
+        $filterParams = $allParams['filter'] ?? [];
+        if (!is_array($filterParams)) {
+            $filterParams = [];
+        }
+        $nameFilter = $filterParams['name'] ?? '';
+        $uuidFilter = $filterParams['uuid'] ?? '';
+        $externalIdFilter = $filterParams['external_id'] ?? '';
+        $imageFilter = $filterParams['image'] ?? '';
 
         // Get sort parameter
         $sort = $request->query->get('sort', 'id');
 
-        // Get include parameter
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeServers = strpos($include, 'user') !== false || strpos($include, 'node') !== false || strpos($include, 'allocations') !== false || strpos($include, 'subusers') !== false || strpos($include, 'nest') !== false || strpos($include, 'egg') !== false || strpos($include, 'variables') !== false || strpos($include, 'location') !== false || strpos($include, 'databases') !== false || strpos($include, 'backups') !== false;
 
         // Validate pagination parameters
@@ -790,7 +800,8 @@ class ServersController
     public function show(Request $request, $serverId)
     {
         // Parse include parameter - can be comma-separated string or array
-        $includeParam = $request->query->get('include', '');
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
         if (is_array($includeParam)) {
             $include = implode(',', $includeParam);
         } else {
@@ -1015,7 +1026,8 @@ class ServersController
     public function showExternal(Request $request, $externalId)
     {
         // Parse include parameter - can be comma-separated string or array
-        $includeParam = $request->query->get('include', '');
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
         if (is_array($includeParam)) {
             $include = implode(',', $includeParam);
         } else {
@@ -3000,7 +3012,14 @@ class ServersController
 
         // Build relationships
         $relationships = [];
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
 
         if (strpos($include, 'user') !== false) {
             $relationships['user'] = [

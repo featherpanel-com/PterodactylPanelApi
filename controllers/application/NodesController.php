@@ -161,16 +161,27 @@ class NodesController
         $page = (int) $request->query->get('page', 1);
         $perPage = (int) $request->query->get('per_page', 50);
 
-        // Get filter parameters
-        $nameFilter = $request->query->get('filter[name]', '');
-        $uuidFilter = $request->query->get('filter[uuid]', '');
-        $fqdnFilter = $request->query->get('filter[fqdn]', '');
+        // Get filter parameters - handle nested query parameters
+        $allParams = $request->query->all();
+        $filterParams = $allParams['filter'] ?? [];
+        if (!is_array($filterParams)) {
+            $filterParams = [];
+        }
+        $nameFilter = $filterParams['name'] ?? '';
+        $uuidFilter = $filterParams['uuid'] ?? '';
+        $fqdnFilter = $filterParams['fqdn'] ?? '';
 
         // Get sort parameter
         $sort = $request->query->get('sort', 'id');
 
-        // Get include parameter
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeAllocations = strpos($include, 'allocations') !== false;
         $includeLocation = strpos($include, 'location') !== false;
         $includeServers = strpos($include, 'servers') !== false;
@@ -403,7 +414,14 @@ class NodesController
     )]
     public function show(Request $request, $nodeId): Response
     {
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeAllocations = strpos($include, 'allocations') !== false;
         $includeLocation = strpos($include, 'location') !== false;
         $includeServers = strpos($include, 'servers') !== false;
@@ -2304,7 +2322,13 @@ class NodesController
         ];
 
         // Check if relationships should be included
-        $include = $request->query->get('include', '');
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         if (!empty($include)) {
             $includeAllocations = strpos($include, 'allocations') !== false;
             $includeLocation = strpos($include, 'location') !== false;

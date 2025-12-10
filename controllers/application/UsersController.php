@@ -191,8 +191,14 @@ class UsersController
             $sort = 'id';
         }
 
-        // Parse include parameter
-        $include = $request->query->get('include', '');
+        // Parse include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeServers = in_array('servers', explode(',', $include), true);
 
         $pdo = App::getInstance(true)->getDatabase()->getPdo();
@@ -506,8 +512,14 @@ class UsersController
     )]
     public function show(Request $request, int $userId): Response
     {
-        // Parse include parameter
-        $include = $request->query->get('include', '');
+        // Parse include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeServers = in_array('servers', explode(',', $include), true);
         $pdo = App::getInstance(true)->getDatabase()->getPdo();
 
@@ -764,8 +776,14 @@ class UsersController
     )]
     public function showExternal(Request $request, string $externalId): Response
     {
-        // Parse include parameter
-        $include = $request->query->get('include', '');
+        // Parse include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeServers = in_array('servers', explode(',', $include), true);
 
         $pdo = App::getInstance(true)->getDatabase()->getPdo();

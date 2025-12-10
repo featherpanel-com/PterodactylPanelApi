@@ -138,15 +138,25 @@ class LocationsController
         $page = (int) $request->query->get('page', 1);
         $perPage = (int) $request->query->get('per_page', 50);
 
-        // Get filter parameters
-        $shortFilter = $request->query->get('filter[short]', '');
-        $longFilter = $request->query->get('filter[long]', '');
+        // Get filter parameters - handle nested query parameters
+        $allParams = $request->query->all();
+        $filterParams = $allParams['filter'] ?? [];
+        if (!is_array($filterParams)) {
+            $filterParams = [];
+        }
+        $shortFilter = $filterParams['short'] ?? '';
+        $longFilter = $filterParams['long'] ?? '';
 
         // Get sort parameter
         $sort = $request->query->get('sort', 'id');
 
-        // Get include parameter
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeNodes = strpos($include, 'nodes') !== false;
         $includeServers = strpos($include, 'servers') !== false;
 
@@ -346,7 +356,14 @@ class LocationsController
     )]
     public function show(Request $request, $locationId): Response
     {
-        $include = $request->query->get('include', '');
+        // Get include parameter - handle both array and string formats
+        $allParams = $request->query->all();
+        $includeParam = $allParams['include'] ?? '';
+        if (is_array($includeParam)) {
+            $include = implode(',', $includeParam);
+        } else {
+            $include = $includeParam;
+        }
         $includeNodes = strpos($include, 'nodes') !== false;
         $includeServers = strpos($include, 'servers') !== false;
 
