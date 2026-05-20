@@ -1,0 +1,119 @@
+<style>
+	body {
+		overflow: hidden;
+	}
+  .api-notice-banner {
+    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", sans-serif;
+    width: 75%;
+    margin: 0 auto;
+    padding: clamp(2rem, 4vw, 3rem) clamp(1rem, 6vw, 4rem);
+    background: linear-gradient(160deg, #101010, #1c1c1c);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    color: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: clamp(1rem, 3vw, 1.75rem);
+    box-shadow: 0 24px 40px -28px rgba(0, 0, 0, 0.65);
+  }
+
+  .api-notice-banner__icon {
+    width: clamp(2.75rem, 8vw, 3.5rem);
+    height: clamp(2.75rem, 8vw, 3.5rem);
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    background: radial-gradient(circle at 30% 30%, #f5f5f5, #d4d4d4);
+    color: #111;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+  }
+
+  .api-notice-banner__content {
+    max-width: 640px;
+    display: grid;
+    gap: clamp(0.75rem, 2vw, 1.25rem);
+  }
+
+  .api-notice-banner__content h2 {
+    margin: 0;
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.01em;
+  }
+
+  .api-notice-banner__content p {
+    margin: 0;
+    font-size: clamp(0.95rem, 3.2vw, 1.05rem);
+    line-height: 1.7;
+    color: rgba(245, 245, 245, 0.85);
+  }
+
+  .api-notice-banner__content p strong,
+  .api-notice-banner__content p em {
+    color: #ffffff;
+  }
+
+  .api-notice-banner__content p + p {
+    margin-top: 0.35rem;
+  }
+
+  .api-notice-banner__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 1.4rem;
+    border-radius: 999px;
+    border: 1px solid #ffffff;
+    background: #ffffff;
+    color: #0f0f0f;
+    font-weight: 700;
+    font-size: clamp(0.95rem, 3.2vw, 1.05rem);
+    text-decoration: none;
+    transition: transform 150ms ease, box-shadow 150ms ease;
+  }
+
+  .api-notice-banner__link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -18px rgba(0, 0, 0, 0.8);
+  }
+
+  .api-notice-banner__link:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 540px) {
+    .api-notice-banner {
+      padding: 0.75rem 0.75rem;
+      border-radius: 0.9rem;
+      gap: 1.25rem;
+    }
+
+    .api-notice-banner__content {
+      gap: 0.75rem;
+    }
+  }
+</style>
+
+<section class="api-notice-banner" role="alert" aria-live="polite">
+  <div class="api-notice-banner__icon" aria-hidden="true">!</div>
+
+  <div class="api-notice-banner__content">
+    <h2>Woah! Wrong Control Room.</h2>
+    <p>
+      <strong>Working with a Pterodactyl-developed product?</strong> Use the
+      official <em>Pterodactyl Panel</em> API tab to create and manage your
+      keys.
+    </p>
+    <p>
+      The FeatherPanel API tab is only for FeatherPanel integrations keys from
+      here will not unlock Pterodactyl endpoints.
+    </p>
+  </div>
+</section>

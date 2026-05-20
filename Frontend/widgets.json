@@ -1,0 +1,8 @@
+[
+  {
+    "id": "pterodactylpanelapi-pterodactyl",
+    "component": "pterodactyl-api-notice-banner.html",
+    "page": "account",
+    "location": "api-keys-top"
+  }
+]
