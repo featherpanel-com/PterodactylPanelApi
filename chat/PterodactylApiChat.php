@@ -33,7 +33,7 @@ class PterodactylApiChat
      * @param int $limit the limit
      * @param int $offset the offset
      * @param string|null $type the API key type filter
-     * @param int|null $createdBy optional creator filter (used for client keys)
+     * @param int|null $createdBy optional creator filter
      *
      * @return array the API keys
      */
@@ -50,7 +50,12 @@ class PterodactylApiChat
         }
 
         $normalizedType = self::normalizeType($type);
-        if ($normalizedType !== null) {
+        if ($normalizedType === 'client' && $createdBy !== null) {
+            // Include legacy keys stored as admin before client type was persisted correctly.
+            $conditions[] = '(`type` = :type OR (`type` = \'admin\' AND `created_by` = :legacy_created_by))';
+            $params['type'] = 'client';
+            $params['legacy_created_by'] = $createdBy;
+        } elseif ($normalizedType !== null) {
             $conditions[] = '`type` = :type';
             $params['type'] = $normalizedType;
         }
@@ -115,7 +120,7 @@ class PterodactylApiChat
      *
      * @param string|null $search the search query
      * @param string|null $type the API key type filter
-     * @param int|null $createdBy optional creator filter (used for client keys)
+     * @param int|null $createdBy optional creator filter
      *
      * @return int the count
      */
@@ -132,7 +137,12 @@ class PterodactylApiChat
         }
 
         $normalizedType = self::normalizeType($type);
-        if ($normalizedType !== null) {
+        if ($normalizedType === 'client' && $createdBy !== null) {
+            // Include legacy keys stored as admin before client type was persisted correctly.
+            $conditions[] = '(`type` = :type OR (`type` = \'admin\' AND `created_by` = :legacy_created_by))';
+            $params['type'] = 'client';
+            $params['legacy_created_by'] = $createdBy;
+        } elseif ($normalizedType !== null) {
             $conditions[] = '`type` = :type';
             $params['type'] = $normalizedType;
         }

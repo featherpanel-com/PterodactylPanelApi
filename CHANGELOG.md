@@ -1,3 +1,9 @@
+# 1.1.0
+
+## Removed
+
+- Removed the Pterodactyl Client API (`/api/client/*`) implementation, routes, and per-user client API key management. Only the Application API (`/api/application/*`) and admin API key management remain.
+
 # 1.0.9
 
 ## Fixed

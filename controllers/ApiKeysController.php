@@ -285,6 +285,16 @@ class ApiKeysController
         }
 
         if (($key['type'] ?? null) !== $context['type']) {
+            // Legacy keys created before client type was stored correctly were saved as admin.
+            if (
+                $context['type'] === 'client'
+                && ($key['type'] ?? null) === 'admin'
+                && $context['owner_id'] !== null
+                && (int) $key['created_by'] === $context['owner_id']
+            ) {
+                return null;
+            }
+
             return $this->forbidResponse();
         }
 

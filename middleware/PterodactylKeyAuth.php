@@ -55,8 +55,6 @@ class PterodactylKeyAuth
             $path = $request->getPathInfo();
             if (preg_match('#^/api/application(?:/|$)#', $path) === 1) {
                 $requiredType = 'admin';
-            } elseif (preg_match('#^/api/client(?:/|$)#', $path) === 1) {
-                $requiredType = 'client';
             }
         }
         if ($requiredType !== null && $record['type'] !== $requiredType) {
