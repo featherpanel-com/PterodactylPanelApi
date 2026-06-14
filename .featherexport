@@ -19,7 +19,7 @@
 # Add your exclusion patterns below:
 */node_modules/*
 /demo/*
-banner.png 
+banner.png
 README.md
 */App/*
 .git/
