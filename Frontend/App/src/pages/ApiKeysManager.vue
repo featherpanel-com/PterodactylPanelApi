@@ -20,7 +20,7 @@ import {
   Save,
   Search,
   Trash2,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { useToast } from "vue-toastification";
 import {
   useApiKeysAPI,
