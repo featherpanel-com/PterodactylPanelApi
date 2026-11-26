@@ -22,6 +22,9 @@ use App\Chat\Node;
 use App\Chat\Backup;
 use App\SubuserPermissions;
 use App\Helpers\ApiResponse;
+use App\Services\Backup\BackupAdapterResolver;
+use App\Services\Storage\BackupStorageService;
+use App\Services\Storage\StorageException;
 use OpenApi\Attributes as OA;
 use App\Config\ConfigInterface;
 use App\Services\Wings\Services\JwtService;
@@ -415,6 +418,184 @@ class BackupsController extends ServersController
 
             return $this->daemonErrorResponse(500, 'Failed to generate backup download URL.');
         }
+    }
+
+    #[OA\Post(
+        path: '/api/client/servers/{identifier}/backups/{backup}/restore',
+        summary: 'Restore backup',
+        description: 'Instructs Wings to restore the specified backup onto the server.',
+        tags: ['Plugin - Pterodactyl API - Client Backups'],
+        parameters: [
+            new OA\Parameter(
+                name: 'identifier',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'string')
+            ),
+            new OA\Parameter(
+                name: 'backup',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'string', format: 'uuid')
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 204, description: 'Restore initiated.'),
+            new OA\Response(response: 401, description: 'Unauthenticated.'),
+            new OA\Response(response: 403, description: 'Forbidden.'),
+            new OA\Response(response: 404, description: 'Not found.'),
+            new OA\Response(response: 423, description: 'Backup locked.'),
+        ]
+    )]
+    public function restore(Request $request, string $identifier, string $backupUuid): Response
+    {
+        $context = $this->resolveServerContext($request, $identifier);
+        if ($context instanceof Response) {
+            return $context;
+        }
+
+        $permissionCheck = $this->ensurePermission($context, SubuserPermissions::BACKUP_RESTORE);
+        if ($permissionCheck instanceof Response) {
+            return $permissionCheck;
+        }
+
+        $backup = $this->resolveServerBackup((int) $context['server']['id'], $backupUuid);
+        if ($backup instanceof Response) {
+            return $backup;
+        }
+
+        if ($this->boolValue($backup['is_locked'] ?? false)) {
+            return ApiResponse::sendManualResponse([
+                'errors' => [
+                    [
+                        'code' => 'LockException',
+                        'status' => 423,
+                        'detail' => 'This backup is currently locked and cannot be restored.',
+                    ],
+                ],
+            ], 423);
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload)) {
+            return $this->validationError('body', 'The request body must be valid JSON.', 'json');
+        }
+
+        $truncate = (bool) ($payload['truncate'] ?? $payload['truncate_directory'] ?? false);
+        $server = $context['server'];
+        $adapter = BackupAdapterResolver::normalizeStored($backup['disk'] ?? null);
+
+        $downloadUrl = null;
+        $downloadHeaders = [];
+        if (BackupStorageService::isRemote($backup)) {
+            try {
+                $source = BackupStorageService::restoreSource($backup, $server);
+                $downloadUrl = $source['download_url'];
+                $downloadHeaders = $source['headers'];
+            } catch (StorageException $e) {
+                return $this->daemonErrorResponse($e->status(), $e->getMessage());
+            } catch (\Throwable $e) {
+                return $this->daemonErrorResponse(502, 'Failed to prepare backup download.');
+            }
+        }
+
+        $wings = $this->createWingsClient($server);
+        if ($wings instanceof Response) {
+            return $wings;
+        }
+
+        try {
+            $daemonAdapter = BackupAdapterResolver::toDaemonAdapter($adapter, $wings);
+            $response = $wings->getServer()->restoreBackup(
+                (string) $server['uuid'],
+                $backupUuid,
+                $daemonAdapter,
+                $truncate,
+                $downloadUrl,
+                $downloadHeaders
+            );
+
+            if (!$response->isSuccessful()) {
+                return $this->daemonErrorResponse($response->getStatusCode(), $response->getError());
+            }
+        } catch (\Throwable $e) {
+            App::getInstance(true)->getLogger()->error('Failed to restore backup via Wings: ' . $e->getMessage());
+
+            return $this->daemonErrorResponse(502);
+        }
+
+        $this->logServerActivity(
+            $request,
+            $context,
+            'server:backup.restore',
+            [
+                'backup_uuid' => $backupUuid,
+                'truncate' => $truncate,
+            ]
+        );
+
+        return new Response('', 204);
+    }
+
+    #[OA\Post(
+        path: '/api/client/servers/{identifier}/backups/{backup}/lock',
+        summary: 'Toggle backup lock',
+        description: 'Toggles the locked state of a backup (Pterodactyl-compatible).',
+        tags: ['Plugin - Pterodactyl API - Client Backups'],
+        parameters: [
+            new OA\Parameter(
+                name: 'identifier',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'string')
+            ),
+            new OA\Parameter(
+                name: 'backup',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'string', format: 'uuid')
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Updated backup.'),
+            new OA\Response(response: 403, description: 'Forbidden.'),
+            new OA\Response(response: 404, description: 'Not found.'),
+        ]
+    )]
+    public function toggleLock(Request $request, string $identifier, string $backupUuid): Response
+    {
+        $context = $this->resolveServerContext($request, $identifier);
+        if ($context instanceof Response) {
+            return $context;
+        }
+
+        $permissionCheck = $this->ensurePermission($context, SubuserPermissions::BACKUP_DELETE);
+        if ($permissionCheck instanceof Response) {
+            return $permissionCheck;
+        }
+
+        $backup = $this->resolveServerBackup((int) $context['server']['id'], $backupUuid);
+        if ($backup instanceof Response) {
+            return $backup;
+        }
+
+        $newLockState = $this->boolValue($backup['is_locked'] ?? false) ? 0 : 1;
+        if (!Backup::updateBackup((int) $backup['id'], ['is_locked' => $newLockState])) {
+            return $this->daemonErrorResponse(500, 'Failed to update backup lock state.');
+        }
+
+        $backup['is_locked'] = $newLockState;
+        $event = $newLockState === 1 ? 'server:backup.lock' : 'server:backup.unlock';
+        $this->logServerActivity(
+            $request,
+            $context,
+            $event,
+            [
+                'backup_uuid' => $backupUuid,
+            ]
+        );
+
+        return ApiResponse::sendManualResponse($this->formatBackup($backup), 200);
     }
 
     #[OA\Delete(
