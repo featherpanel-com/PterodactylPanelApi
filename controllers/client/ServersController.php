@@ -857,6 +857,104 @@ class ServersController
         }
     }
 
+    #[OA\Put(
+        path: '/api/client/servers/{identifier}/settings/docker-image',
+        summary: 'Set Docker image',
+        description: 'Updates the Docker image used by the server when allowed by spell configuration.',
+        tags: ['Plugin - Pterodactyl API - Client Servers'],
+        parameters: [
+            new OA\Parameter(
+                name: 'identifier',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'string')
+            ),
+        ],
+        responses: [
+            new OA\Response(response: 204, description: 'Docker image updated.'),
+            new OA\Response(response: 400, description: 'Image not allowed.'),
+            new OA\Response(response: 403, description: 'Forbidden.'),
+        ]
+    )]
+    public function updateDockerImage(Request $request, string $identifier): Response
+    {
+        $context = $this->resolveServerContext($request, $identifier);
+        if ($context instanceof Response) {
+            return $context;
+        }
+
+        $permissionCheck = $this->ensurePermission($context, SubuserPermissions::STARTUP_DOCKER_IMAGE);
+        if ($permissionCheck instanceof Response) {
+            return $permissionCheck;
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload) || !isset($payload['docker_image']) || !is_string($payload['docker_image'])) {
+            return ApiResponse::sendManualResponse([
+                'errors' => [
+                    [
+                        'code' => 'ValidationException',
+                        'status' => '422',
+                        'detail' => 'The docker_image field is required.',
+                        'meta' => [
+                            'source_field' => 'docker_image',
+                            'rule' => 'required',
+                        ],
+                    ],
+                ],
+            ], 422);
+        }
+
+        $image = trim($payload['docker_image']);
+        if ($image === '' || mb_strlen($image) > 191) {
+            return $this->daemonErrorResponse(422, 'The docker_image field is invalid.');
+        }
+
+        $server = $context['server'];
+        $app = App::getInstance(true);
+        $allowCustom = $app->getConfig()->getSetting(ConfigInterface::SERVER_ALLOW_CUSTOM_DOCKER_IMAGE, 'false');
+        $allowCustom = $allowCustom === 'true' || $allowCustom === true || $allowCustom === '1' || $allowCustom === 1;
+
+        if (!$allowCustom) {
+            $spell = Spell::getSpellById((int) ($server['spell_id'] ?? 0));
+            if ($spell === null) {
+                return $this->notFoundError('Spell');
+            }
+
+            $allowedImages = Spell::parseDockerImages($spell['docker_images'] ?? null);
+            $currentImage = trim((string) ($server['image'] ?? ''));
+            if ($currentImage !== '' && !in_array($currentImage, $allowedImages, true)) {
+                $allowedImages[] = $currentImage;
+            }
+
+            $defaultImage = Spell::resolveDefaultDockerImage($spell);
+            if ($defaultImage !== '' && !in_array($defaultImage, $allowedImages, true)) {
+                $allowedImages[] = $defaultImage;
+            }
+
+            if ($allowedImages === [] || !in_array($image, $allowedImages, true)) {
+                return $this->daemonErrorResponse(400, 'This Docker image is not allowed for this server spell.');
+            }
+        }
+
+        $original = (string) ($server['image'] ?? '');
+        if (!Server::updateServerById((int) $server['id'], ['image' => $image])) {
+            return $this->daemonErrorResponse(500, 'Failed to update Docker image.');
+        }
+
+        $this->logServerActivity(
+            $request,
+            $context,
+            'server:startup.image',
+            [
+                'old' => $original,
+                'new' => $image,
+            ]
+        );
+
+        return new Response('', 204);
+    }
+
     #[OA\Get(
         path: '/api/client/servers/{identifier}/startup',
         summary: 'List startup variables',

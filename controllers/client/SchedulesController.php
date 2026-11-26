@@ -837,6 +837,65 @@ class SchedulesController extends ServersController
         return new Response('', 204);
     }
 
+    public function execute(Request $request, string $identifier, string $scheduleId): Response
+    {
+        $context = $this->resolveServerContext($request, $identifier);
+        if ($context instanceof Response) {
+            return $context;
+        }
+
+        $permissionCheck = $this->ensurePermission($context, SubuserPermissions::SCHEDULE_UPDATE);
+        if ($permissionCheck instanceof Response) {
+            return $permissionCheck;
+        }
+
+        $schedule = $this->resolveSchedule($context['server'], $scheduleId);
+        if ($schedule instanceof Response) {
+            return $schedule;
+        }
+
+        if ($this->boolValue($schedule['is_processing'] ?? false)) {
+            return ApiResponse::sendManualResponse([
+                'errors' => [
+                    [
+                        'code' => 'BadRequestHttpException',
+                        'status' => '400',
+                        'detail' => 'This schedule is already being processed.',
+                    ],
+                ],
+            ], 400);
+        }
+
+        $tasks = Task::getTasksByScheduleId((int) $schedule['id']);
+        if ($tasks === []) {
+            return ApiResponse::sendManualResponse([
+                'errors' => [
+                    [
+                        'code' => 'BadRequestHttpException',
+                        'status' => '400',
+                        'detail' => 'This schedule does not have any tasks to execute.',
+                    ],
+                ],
+            ], 400);
+        }
+
+        $pastTime = date('Y-m-d H:i:s', time() - 60);
+        if (!ServerSchedule::updateSchedule((int) $schedule['id'], ['next_run_at' => $pastTime])) {
+            return $this->daemonErrorResponse(500, 'Failed to queue schedule for execution.');
+        }
+
+        $this->logServerActivity(
+            $request,
+            $context,
+            'server:schedule.execute',
+            [
+                'schedule_id' => (int) $schedule['id'],
+            ]
+        );
+
+        return new Response('', 204);
+    }
+
     private function resolveSchedule(array $server, string $scheduleId): array | Response
     {
         if (!ctype_digit($scheduleId)) {

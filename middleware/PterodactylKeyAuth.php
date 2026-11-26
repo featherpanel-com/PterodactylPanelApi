@@ -22,11 +22,24 @@ use App\Helpers\ApiResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Addons\pterodactylpanelapi\chat\PterodactylApiChat;
+use App\Addons\pterodactylpanelapi\utils\PterodactylResponse;
 
 class PterodactylKeyAuth
 {
     public function handle(Request $request, callable $next): Response
     {
+        if (!PterodactylResponse::wantsPterodactylJson($request->headers->get('Accept'))) {
+            return ApiResponse::sendManualResponse([
+                'errors' => [
+                    [
+                        'code' => 'NotAcceptableHttpException',
+                        'status' => '406',
+                        'detail' => 'The Accept header must include application/vnd.pterodactyl.v1+json.',
+                    ],
+                ],
+            ], 406);
+        }
+
         $authHeader = $request->headers->get('Authorization');
         if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
             return ApiResponse::sendManualResponse([

@@ -19,6 +19,7 @@ use Symfony\Component\Routing\Route;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\RouteCollection;
 use App\Addons\pterodactylpanelapi\middleware\PterodactylKeyAuth;
+use App\Addons\pterodactylpanelapi\controllers\ApiKeysController;
 use App\Addons\pterodactylpanelapi\controllers\client\AccountController;
 use App\Addons\pterodactylpanelapi\controllers\client\PermissionsController;
 
@@ -75,6 +76,74 @@ return function (RouteCollection $routes): void {
         '', // host
         [], // schemes
         ['PUT']
+    ));
+
+    $routes->add('pterodactylpanelapi-client-account-api-keys-index', new Route(
+        '/api/client/account/api-keys',
+        [
+            '_controller' => function (Request $request) {
+                $request->attributes->set('pterodactyl_api_key_type', 'client');
+                $request->attributes->set('pterodactyl_api_key_scope', 'self');
+
+                return (new ApiKeysController())->index($request);
+            },
+            '_middleware' => [
+                PterodactylKeyAuth::class,
+            ],
+            'required_pterodactyl_key_type' => 'client',
+        ],
+        [],
+        [],
+        '',
+        [],
+        ['GET']
+    ));
+
+    $routes->add('pterodactylpanelapi-client-account-api-keys-store', new Route(
+        '/api/client/account/api-keys',
+        [
+            '_controller' => function (Request $request) {
+                $request->attributes->set('pterodactyl_api_key_type', 'client');
+                $request->attributes->set('pterodactyl_api_key_scope', 'self');
+
+                return (new ApiKeysController())->create($request);
+            },
+            '_middleware' => [
+                PterodactylKeyAuth::class,
+            ],
+            'required_pterodactyl_key_type' => 'client',
+        ],
+        [],
+        [],
+        '',
+        [],
+        ['POST']
+    ));
+
+    $routes->add('pterodactylpanelapi-client-account-api-keys-delete', new Route(
+        '/api/client/account/api-keys/{identifier}',
+        [
+            '_controller' => function (Request $request, array $parameters) {
+                $id = $parameters['identifier'] ?? null;
+                if ($id === null || !is_numeric($id)) {
+                    return \App\Helpers\ApiResponse::error('Missing or invalid identifier', 'INVALID_ID', 400);
+                }
+
+                $request->attributes->set('pterodactyl_api_key_type', 'client');
+                $request->attributes->set('pterodactyl_api_key_scope', 'self');
+
+                return (new ApiKeysController())->delete($request, (int) $id);
+            },
+            '_middleware' => [
+                PterodactylKeyAuth::class,
+            ],
+            'required_pterodactyl_key_type' => 'client',
+        ],
+        ['identifier' => '\d+'],
+        [],
+        '',
+        [],
+        ['DELETE']
     ));
 
     $routes->add('pterodactylpanelapi-client-permissions', new Route(

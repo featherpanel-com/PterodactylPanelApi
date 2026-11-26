@@ -172,6 +172,24 @@ return function (RouteCollection $routes): void {
         ['POST']
     ));
 
+    $routes->add('pterodactylpanelapi-client-server-settings-docker-image', new Route(
+        '/api/client/servers/{identifier}/settings/docker-image',
+        [
+            '_controller' => function (Request $request, array $parameters) {
+                return (new ServersController())->updateDockerImage($request, $parameters['identifier']);
+            },
+            '_middleware' => [
+                PterodactylKeyAuth::class,
+            ],
+            'required_pterodactyl_key_type' => 'client',
+        ],
+        ['identifier' => '[a-zA-Z0-9\-]+'],
+        [],
+        '',
+        [],
+        ['PUT']
+    ));
+
     $routes->add('pterodactylpanelapi-client-server-startup', new Route(
         '/api/client/servers/{identifier}/startup',
         [
@@ -305,6 +323,48 @@ return function (RouteCollection $routes): void {
         '',
         [],
         ['DELETE']
+    ));
+
+    $routes->add('pterodactylpanelapi-client-server-backups-restore', new Route(
+        '/api/client/servers/{identifier}/backups/{backup}/restore',
+        [
+            '_controller' => function (Request $request, array $parameters) {
+                return (new BackupsController())->restore($request, $parameters['identifier'], $parameters['backup']);
+            },
+            '_middleware' => [
+                PterodactylKeyAuth::class,
+            ],
+            'required_pterodactyl_key_type' => 'client',
+        ],
+        [
+            'identifier' => '[a-zA-Z0-9\-]+',
+            'backup' => '[a-fA-F0-9\-]+',
+        ],
+        [],
+        '',
+        [],
+        ['POST']
+    ));
+
+    $routes->add('pterodactylpanelapi-client-server-backups-lock', new Route(
+        '/api/client/servers/{identifier}/backups/{backup}/lock',
+        [
+            '_controller' => function (Request $request, array $parameters) {
+                return (new BackupsController())->toggleLock($request, $parameters['identifier'], $parameters['backup']);
+            },
+            '_middleware' => [
+                PterodactylKeyAuth::class,
+            ],
+            'required_pterodactyl_key_type' => 'client',
+        ],
+        [
+            'identifier' => '[a-zA-Z0-9\-]+',
+            'backup' => '[a-fA-F0-9\-]+',
+        ],
+        [],
+        '',
+        [],
+        ['POST']
     ));
 
     $routes->add('pterodactylpanelapi-client-server-allocations-index', new Route(
@@ -682,6 +742,27 @@ return function (RouteCollection $routes): void {
         ['DELETE']
     ));
 
+    $routes->add('pterodactylpanelapi-client-server-schedules-execute', new Route(
+        '/api/client/servers/{identifier}/schedules/{schedule}/execute',
+        [
+            '_controller' => function (Request $request, array $parameters) {
+                return (new SchedulesController())->execute($request, $parameters['identifier'], $parameters['schedule']);
+            },
+            '_middleware' => [
+                PterodactylKeyAuth::class,
+            ],
+            'required_pterodactyl_key_type' => 'client',
+        ],
+        [
+            'identifier' => '[a-zA-Z0-9\-]+',
+            'schedule' => '\d+',
+        ],
+        [],
+        '',
+        [],
+        ['POST']
+    ));
+
     $routes->add('pterodactylpanelapi-client-server-schedules-tasks-create', new Route(
         '/api/client/servers/{identifier}/schedules/{schedule}/tasks',
         [
@@ -943,6 +1024,42 @@ return function (RouteCollection $routes): void {
         '',
         [],
         ['GET']
+    ));
+
+    $routes->add('pterodactylpanelapi-client-server-files-chmod', new Route(
+        '/api/client/servers/{identifier}/files/chmod',
+        [
+            '_controller' => function (Request $request, array $parameters) {
+                return (new FilesController())->chmod($request, $parameters['identifier']);
+            },
+            '_middleware' => [
+                PterodactylKeyAuth::class,
+            ],
+            'required_pterodactyl_key_type' => 'client',
+        ],
+        ['identifier' => '[a-zA-Z0-9\-]+'],
+        [],
+        '',
+        [],
+        ['POST']
+    ));
+
+    $routes->add('pterodactylpanelapi-client-server-files-pull', new Route(
+        '/api/client/servers/{identifier}/files/pull',
+        [
+            '_controller' => function (Request $request, array $parameters) {
+                return (new FilesController())->pull($request, $parameters['identifier']);
+            },
+            '_middleware' => [
+                PterodactylKeyAuth::class,
+            ],
+            'required_pterodactyl_key_type' => 'client',
+        ],
+        ['identifier' => '[a-zA-Z0-9\-]+'],
+        [],
+        '',
+        [],
+        ['POST']
     ));
 
     $routes->add('pterodactylpanelapi-client-server-activity-index', new Route(

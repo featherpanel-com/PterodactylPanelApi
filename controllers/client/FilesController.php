@@ -1051,6 +1051,109 @@ class FilesController extends ServersController
         ], 200);
     }
 
+    public function chmod(Request $request, string $identifier): Response
+    {
+        $context = $this->resolveServerContext($request, $identifier);
+        if ($context instanceof Response) {
+            return $context;
+        }
+
+        $permissionCheck = $this->ensurePermission($context, SubuserPermissions::FILE_UPDATE);
+        if ($permissionCheck instanceof Response) {
+            return $permissionCheck;
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload) || !isset($payload['files']) || !is_array($payload['files'])) {
+            return $this->validationError('files', 'The files field is required and must be an array.', 'required');
+        }
+
+        $root = $this->normalizeDirectory($payload['root'] ?? '/');
+        $files = $payload['files'];
+
+        $wings = $this->createWingsClient($context['server']);
+        if ($wings instanceof Response) {
+            return $wings;
+        }
+
+        try {
+            $response = $wings->getServer()->changeFilePermissions(
+                (string) $context['server']['uuid'],
+                $root,
+                $files
+            );
+            if (!$response->isSuccessful()) {
+                return $this->daemonErrorResponse($response->getStatusCode(), $response->getError());
+            }
+        } catch (\Throwable $e) {
+            App::getInstance(true)->getLogger()->error('Failed to chmod files on Wings: ' . $e->getMessage());
+
+            return $this->daemonErrorResponse(502);
+        }
+
+        $this->logServerActivity($request, $context, 'server:file.chmod', ['root' => $root]);
+
+        return new Response('', 204);
+    }
+
+    public function pull(Request $request, string $identifier): Response
+    {
+        $context = $this->resolveServerContext($request, $identifier);
+        if ($context instanceof Response) {
+            return $context;
+        }
+
+        $permissionCheck = $this->ensurePermission($context, SubuserPermissions::FILE_CREATE);
+        if ($permissionCheck instanceof Response) {
+            return $permissionCheck;
+        }
+
+        $payload = json_decode($request->getContent(), true);
+        if (!is_array($payload)) {
+            return $this->validationError('payload', 'The request body must be valid JSON.', 'json');
+        }
+
+        if (!isset($payload['url']) || !is_string($payload['url']) || trim($payload['url']) === '') {
+            return $this->validationError('url', 'The url field is required.', 'required');
+        }
+
+        $directory = $this->normalizeDirectory($payload['directory'] ?? $payload['root'] ?? '/');
+        $filename = isset($payload['filename']) && is_string($payload['filename']) ? $payload['filename'] : null;
+        $useHeader = (bool) ($payload['use_header'] ?? $payload['useHeader'] ?? true);
+        $foreground = (bool) ($payload['foreground'] ?? false);
+
+        $wings = $this->createWingsClient($context['server']);
+        if ($wings instanceof Response) {
+            return $wings;
+        }
+
+        try {
+            $response = $wings->getServer()->pullFile(
+                (string) $context['server']['uuid'],
+                $payload['url'],
+                $directory,
+                $filename,
+                $foreground,
+                $useHeader
+            );
+
+            if (!$response->isSuccessful()) {
+                return $this->daemonErrorResponse($response->getStatusCode(), $response->getError());
+            }
+        } catch (\Throwable $e) {
+            App::getInstance(true)->getLogger()->error('Failed to pull remote file via Wings: ' . $e->getMessage());
+
+            return $this->daemonErrorResponse(502);
+        }
+
+        $this->logServerActivity($request, $context, 'server:file.pull', [
+            'directory' => $directory,
+            'url' => $payload['url'],
+        ]);
+
+        return new Response('', 204);
+    }
+
     private function normalizeDirectory(mixed $directory): string
     {
         if (!is_string($directory)) {
