@@ -35,7 +35,9 @@ services:
 
   panel:
     image: ghcr.io/pterodactyl/panel:v1.15.2
+    # Keep image CMD explicitly — overriding entrypoint alone drops it in Compose.
     entrypoint: ["/bin/ash", "/parity/ptero-entrypoint.sh"]
+    command: ["supervisord", "-n", "-c", "/etc/supervisord.conf"]
     depends_on:
       db:
         condition: service_healthy

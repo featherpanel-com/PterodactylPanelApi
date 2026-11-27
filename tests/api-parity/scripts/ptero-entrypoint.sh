@@ -36,6 +36,11 @@ EOF
   export PATH="/usr/local/bin:${PATH}"
 fi
 
+# Compose entrypoint overrides can drop image CMD; never exec an empty argv.
+if [ "$#" -eq 0 ]; then
+  set -- supervisord -n -c /etc/supervisord.conf
+fi
+
 if [ -f /app/.github/docker/entrypoint.sh ]; then
   exec /bin/ash /app/.github/docker/entrypoint.sh "$@"
 fi

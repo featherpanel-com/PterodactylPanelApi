@@ -26,7 +26,10 @@ services:
 
   panel:
     image: ghcr.io/pterodactyl/panel:v2.0.0-beta.3
+    # Keep image CMD explicitly — overriding entrypoint alone drops it in Compose.
+    # v2 entrypoint only boots nginx/php when $1 is "supervisord".
     entrypoint: ["/bin/ash", "/parity/ptero-entrypoint.sh"]
+    command: ["supervisord", "-n", "-c", "/etc/supervisord.conf"]
     depends_on:
       db:
         condition: service_healthy
@@ -47,7 +50,7 @@ services:
       APP_SERVICE_AUTHOR: "noreply@parity.local"
       APP_ENV: "production"
       APP_DEBUG: "false"
-      APP_ENVIRONMENT_ONLY: "true"
+      APP_ENVIRONMENT_ONLY: "false"
       DB_HOST: db
       DB_PORT: "3306"
       DB_DATABASE: panel
