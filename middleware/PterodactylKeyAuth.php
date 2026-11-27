@@ -72,6 +72,16 @@ class PterodactylKeyAuth
         $request->attributes->set('api_key_type', $record['type']);
         $request->attributes->set('auth_type', 'api_key');
 
+        // Resolve the owning Feather user so client controllers (api-keys, account)
+        // can read $request->attributes->get('user') the same way AuthMiddleware does.
+        $ownerId = isset($record['created_by']) ? (int) $record['created_by'] : 0;
+        if ($ownerId > 0) {
+            $user = User::getUserById($ownerId);
+            if (is_array($user)) {
+                $request->attributes->set('user', $user);
+            }
+        }
+
         return $next($request);
     }
 

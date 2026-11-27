@@ -125,21 +125,21 @@ return function (RouteCollection $routes): void {
         [
             '_controller' => function (Request $request, array $parameters) {
                 $id = $parameters['identifier'] ?? null;
-                if ($id === null || !is_numeric($id)) {
+                if ($id === null || $id === '') {
                     return \App\Helpers\ApiResponse::error('Missing or invalid identifier', 'INVALID_ID', 400);
                 }
 
                 $request->attributes->set('pterodactyl_api_key_type', 'client');
                 $request->attributes->set('pterodactyl_api_key_scope', 'self');
 
-                return (new ApiKeysController())->delete($request, (int) $id);
+                return (new ApiKeysController())->delete($request, is_numeric($id) ? (int) $id : (string) $id);
             },
             '_middleware' => [
                 PterodactylKeyAuth::class,
             ],
             'required_pterodactyl_key_type' => 'client',
         ],
-        ['identifier' => '\d+'],
+        ['identifier' => '[A-Za-z0-9_\\-]+'],
         [],
         '',
         [],

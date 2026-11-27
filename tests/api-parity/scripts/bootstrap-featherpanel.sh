@@ -66,6 +66,13 @@ done
      ('parity-ci-admin', '${API_KEY}', 'admin', ${USER_ID}, 'false'),
      ('parity-ci-client', '${CLIENT_API_KEY}', 'client', ${USER_ID}, 'false');"
 
+# Pterodactyl external_id is a string; Feather's users.external_id is still INT in stock
+# migrations, which breaks Application user create with string external_ids.
+echo "==> Widening featherpanel_users.external_id to VARCHAR(191)"
+"${COMPOSE[@]}" exec -T db mariadb -ufeatherpanel -pfeatherpanel_password featherpanel -e \
+  "ALTER TABLE featherpanel_users MODIFY COLUMN external_id VARCHAR(191) NULL DEFAULT NULL;" \
+  || true
+
 # Seed realms (Pterodactyl nests) so Application /nests returns a non-empty list like upstream v1.
 "${COMPOSE[@]}" exec -T db mariadb -ufeatherpanel -pfeatherpanel_password featherpanel -e \
   "INSERT INTO featherpanel_realms (name, description)
