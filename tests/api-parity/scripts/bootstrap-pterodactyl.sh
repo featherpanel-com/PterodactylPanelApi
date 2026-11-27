@@ -8,11 +8,12 @@ BASE_URL="${2:?base url required}"
 OUT_FILE="${3:?output env file required}"
 MAJOR="${4:-1}"
 
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE=(docker compose -f "${COMPOSE_FILE}")
 
 echo "==> Bootstrapping Pterodactyl v${MAJOR} (${BASE_URL})"
 
-# Entrypoint already migrates; re-run is idempotent and fails loudly if SSL still broken.
+# Entrypoint migrates on v1; v2 leaves migrate explicit. Re-run is idempotent.
 "${COMPOSE[@]}" exec -T panel php artisan migrate --seed --force --no-interaction
 
 "${COMPOSE[@]}" exec -T panel php artisan p:user:make \
@@ -24,32 +25,11 @@ echo "==> Bootstrapping Pterodactyl v${MAJOR} (${BASE_URL})"
   --admin=1 \
   --no-interaction || true
 
-TOKEN="$("${COMPOSE[@]}" exec -T panel php artisan tinker --execute="
-\$user = \\Pterodactyl\\Models\\User::query()->where('email', 'admin@parity.local')->firstOrFail();
-\$secret = \\Illuminate\\Support\\Str::random(\\Pterodactyl\\Models\\ApiKey::KEY_LENGTH);
-\$identifier = \\Pterodactyl\\Models\\ApiKey::generateTokenIdentifier(\\Pterodactyl\\Models\\ApiKey::TYPE_APPLICATION);
-\$attrs = [
-  'user_id' => \$user->id,
-  'key_type' => \\Pterodactyl\\Models\\ApiKey::TYPE_APPLICATION,
-  'identifier' => \$identifier,
-  'token' => encrypt(\$secret),
-  'memo' => 'parity-ci',
-  'allowed_ips' => null,
-  'r_servers' => 3,
-  'r_nodes' => 3,
-  'r_allocations' => 3,
-  'r_users' => 3,
-  'r_locations' => 3,
-  'r_eggs' => 3,
-  'r_database_hosts' => 3,
-  'r_server_databases' => 3,
-];
-if (${MAJOR} === 1) {
-  \$attrs['r_nests'] = 3;
-}
-\\Pterodactyl\\Models\\ApiKey::query()->create(\$attrs);
-echo \$identifier . \$secret;
-" | tr -d '\r' | tail -n 1 | tr -d '[:space:]')"
+# Copy mint script in (compose only mounts the entrypoint wrapper).
+"${COMPOSE[@]}" cp "${DIR}/mint-ptero-app-key.php" panel:/tmp/mint-ptero-app-key.php
+
+TOKEN="$("${COMPOSE[@]}" exec -T panel php /tmp/mint-ptero-app-key.php "${MAJOR}" \
+  | tr -d '\r' | tail -n 1 | tr -d '[:space:]')"
 
 if [[ -z "${TOKEN}" || "${TOKEN}" != ptla_* ]]; then
   echo "Failed to mint Application API key: '${TOKEN}'" >&2
