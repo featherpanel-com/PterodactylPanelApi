@@ -49,10 +49,12 @@ cleanup() {
 trap cleanup EXIT
 
 echo "==> [${PANEL}] wait for ${HEALTH_URL}"
-if ! bash "${DIR}/wait-http.sh" "${HEALTH_URL}" 420 "${PANEL}"; then
+SERVICE_NAME="panel"
+[[ "${PANEL}" == "feather" ]] && SERVICE_NAME="backend"
+if ! bash "${DIR}/wait-http.sh" "${HEALTH_URL}" 240 "${PANEL}" "${COMPOSE_FILE}" "${SERVICE_NAME}"; then
   echo "==> [${PANEL}] failed readiness; dumping logs" >&2
-  "${COMPOSE[@]}" ps >&2 || true
-  "${COMPOSE[@]}" logs --tail=120 >&2 || true
+  "${COMPOSE[@]}" ps -a >&2 || true
+  "${COMPOSE[@]}" logs --tail=160 >&2 || true
   exit 1
 fi
 
