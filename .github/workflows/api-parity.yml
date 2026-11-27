@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Check Application routes vs Pterodactyl v1
+      - name: Check Application + Client route catalogs
         run: |
           node --input-type=module <<'EOF'
           import fs from 'node:fs';
@@ -34,32 +34,42 @@ jobs:
           const FIXTURES = path.join(ROOT, 'tests/api-parity/fixtures');
           const normalize = (p) => p.replace(/\{[^}]+\}/g, '{id}').replace(/\/+/g, '/').replace(/\/$/, '') || '/';
           const key = (m, p) => `${m.toUpperCase()} ${normalize(p)}`;
-          const routes = [];
-          for (const file of fs.readdirSync(path.join(ROOT, 'Routes/Application'))) {
-            if (!file.endsWith('.php')) continue;
-            const text = fs.readFileSync(path.join(ROOT, 'Routes/Application', file), 'utf8');
-            const re = /new Route\(\s*'([^']+)'[\s\S]*?\[['"]([A-Z, ]+)['"]\]/g;
-            let m;
-            while ((m = re.exec(text))) {
-              if (!m[1].startsWith('/api/application')) continue;
-              for (const method of m[2].split(',').map((x) => x.trim()).filter(Boolean)) {
-                routes.push(key(method, m[1]));
+          function extract(dir, prefix) {
+            const routes = [];
+            for (const file of fs.readdirSync(dir)) {
+              if (!file.endsWith('.php')) continue;
+              const text = fs.readFileSync(path.join(dir, file), 'utf8');
+              const re = /new Route\(\s*'([^']+)'[\s\S]*?\[['"]([A-Z, ]+)['"]\]/g;
+              let m;
+              while ((m = re.exec(text))) {
+                if (!m[1].startsWith(prefix)) continue;
+                for (const method of m[2].split(',').map((x) => x.trim()).filter(Boolean)) {
+                  routes.push(key(method, m[1]));
+                }
               }
             }
+            return new Set(routes);
           }
-          const plugin = new Set(routes);
-          const v1 = new Set(JSON.parse(fs.readFileSync(path.join(FIXTURES, 'ptero-v1-application-routes.json'), 'utf8')).map((r) => key(r.method, r.path)));
-          const missing = [...v1].filter((k) => !plugin.has(k)).sort();
-          const extra = [...plugin].filter((k) => !v1.has(k)).sort();
-          console.log(JSON.stringify({ plugin: plugin.size, v1: v1.size, missing, extra }, null, 2));
-          if (missing.length || extra.length) process.exit(1);
+          const appPlugin = extract(path.join(ROOT, 'Routes/Application'), '/api/application');
+          const appV1 = new Set(JSON.parse(fs.readFileSync(path.join(FIXTURES, 'ptero-v1-application-routes.json'), 'utf8')).map((r) => key(r.method, r.path)));
+          const appMissing = [...appV1].filter((k) => !appPlugin.has(k)).sort();
+          const appExtra = [...appPlugin].filter((k) => !appV1.has(k)).sort();
+          const clientPlugin = extract(path.join(ROOT, 'Routes/Client'), '/api/client');
+          const clientV1 = new Set(JSON.parse(fs.readFileSync(path.join(FIXTURES, 'ptero-v1-client-routes.json'), 'utf8')).map((r) => key(r.method, r.path)));
+          const clientMissing = [...clientV1].filter((k) => !clientPlugin.has(k)).sort();
+          console.log(JSON.stringify({
+            application: { plugin: appPlugin.size, v1: appV1.size, missing: appMissing, extra: appExtra },
+            client: { plugin: clientPlugin.size, v1: clientV1.size, missing: clientMissing },
+          }, null, 2));
+          if (appMissing.length || appExtra.length) process.exit(1);
+          if (clientPlugin.size < 20) process.exit(1);
           EOF
 
   ptero-v1:
     name: Pterodactyl v1
     needs: [catalog]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -87,7 +97,7 @@ jobs:
     name: Pterodactyl v2
     needs: [catalog]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -115,7 +125,7 @@ jobs:
     name: FeatherPanel + plugin
     needs: [catalog]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -175,11 +185,13 @@ jobs:
             .artifacts/ptero-v1.json \
             .artifacts/ptero-v2.json \
             .artifacts/feather.json
-      - name: Upload report
+      - name: Upload report + OpenAPI schema
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: api-parity-report
-          path: tests/api-parity/.artifacts/parity-report.json
+          path: |
+            tests/api-parity/.artifacts/parity-report.json
+            tests/api-parity/.artifacts/openapi.parity.json
           if-no-files-found: ignore
           retention-days: 14

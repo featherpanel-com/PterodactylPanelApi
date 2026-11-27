@@ -1,36 +1,43 @@
-# API parity (Pterodactyl v1 / v2 / FeatherPanel)
+# API parity (Application + Client)
 
-CI runs **three panel jobs in parallel**, then a compare job:
+CI boots **Pterodactyl v1**, **Pterodactyl v2**, and **FeatherPanel + this plugin** in parallel, then:
+
+1. Asserts Application route catalog 1:1 vs Pterodactyl v1  
+2. Reports Client route coverage vs upstream  
+3. Runs an **exhaustive probe suite** for both **admin (Application / `ptla_`)** and **client (`ptlc_`)** APIs — lists, filters, includes, CRUD, nested resources, auth failures  
+4. Compares status + Fractal shapes + attribute keys 1:1  
+5. Exports an **OpenAPI 3** schema artifact (`openapi.parity.json`) with live request/response examples from all three panels  
+
+## Jobs
 
 | Job | What it does |
 | --- | --- |
-| `Route catalog` | Fast offline check: plugin Application routes vs official Pterodactyl v1 |
-| `Pterodactyl v1` | Boot panel, mint API key, capture probe snapshot |
+| `Route catalog` | Fast offline Application (+ Client coverage) check |
+| `Pterodactyl v1` | Boot, mint admin+client keys, full probe snapshot |
 | `Pterodactyl v2` | Same for v2 |
-| `FeatherPanel + plugin` | Boot FeatherPanel with this repo mounted as the addon |
-| `Compare 1:1` | Fail unless Feather matches v1 (full) and v2 (shared surface) |
-
-Any panel job can fail on its own without waiting for the others.
+| `FeatherPanel + plugin` | Same with this repo mounted as the addon |
+| `Compare 1:1` | Fail on shape/status drift; upload OpenAPI schema |
 
 ## Local
 
 ```bash
 cd tests/api-parity
-./scripts/run-all.sh          # parallel local run
-./scripts/run-panel.sh ptero-v1
-./scripts/run-panel.sh ptero-v2
-./scripts/run-panel.sh feather
+./scripts/run-all.sh
 node scripts/compare-snapshots.mjs .artifacts/ptero-v1.json .artifacts/ptero-v2.json .artifacts/feather.json
+# OpenAPI written to .artifacts/openapi.parity.json
 ```
 
-## Layout
+## Artifacts
 
-| Path | Purpose |
+| File | Purpose |
 | --- | --- |
-| `compose/ptero-v1.yml` | Pterodactyl 1.x stack |
-| `compose/ptero-v2.yml` | Pterodactyl 2.x stack |
-| `compose/feather.yml` | FeatherPanel + plugin mount |
-| `scripts/run-panel.sh` | Boot → bootstrap → capture one panel |
-| `scripts/capture-panel.mjs` | Live probes → snapshot JSON |
-| `scripts/compare-snapshots.mjs` | 1:1 status/shape/key comparison |
-| `fixtures/ptero-*-application-routes.json` | Official Application routes |
+| `*.json` snapshots | Every probe: request, status, shape, sample body |
+| `parity-report.json` | Pass/fail details + coverage |
+| `openapi.parity.json` | Exported API schema (Application + Client) |
+
+## Keys
+
+Bootstraps mint both:
+
+- `API_KEY` — Application admin key (`ptla_…`)  
+- `CLIENT_API_KEY` — Client key (`ptlc_…`)  

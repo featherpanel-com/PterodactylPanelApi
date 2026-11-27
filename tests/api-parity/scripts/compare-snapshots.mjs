@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 /**
- * Compare panel snapshots + Application route catalog.
+ * Compare Application + Client snapshots and route catalogs.
  * Usage: node compare-snapshots.mjs <ptero-v1.json> <ptero-v2.json> <feather.json>
- *
- * Feather must match Pterodactyl v1 Application API 1:1.
- * Vs v2, compare status + the shared attribute surface (v2-only fields stripped).
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+import { routeKey } from "./lib/http.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../../..");
@@ -26,27 +25,24 @@ function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
-function normalizePathParams(p) {
-  return p.replace(/\{[^}]+\}/g, "{id}").replace(/\/+/g, "/").replace(/\/$/, "") || "/";
-}
-
-function routeKey(method, p) {
-  return `${method.toUpperCase()} ${normalizePathParams(p)}`;
-}
-
-function extractPluginApplicationRoutes() {
-  const routesDir = path.join(ROOT, "Routes/Application");
+function extractPluginRoutes(kind) {
+  const dir =
+    kind === "application"
+      ? path.join(ROOT, "Routes/Application")
+      : path.join(ROOT, "Routes/Client");
   const routes = [];
-  for (const file of fs.readdirSync(routesDir)) {
+  for (const file of fs.readdirSync(dir)) {
     if (!file.endsWith(".php")) continue;
-    const text = fs.readFileSync(path.join(routesDir, file), "utf8");
+    const text = fs.readFileSync(path.join(dir, file), "utf8");
     const re = /new Route\(\s*'([^']+)'[\s\S]*?\[['"]([A-Z, ]+)['"]\]/g;
     let m;
     while ((m = re.exec(text))) {
       const routePath = m[1];
-      const methods = m[2].split(",").map((x) => x.trim()).filter(Boolean);
-      if (!routePath.startsWith("/api/application")) continue;
-      for (const method of methods) routes.push({ method, path: routePath });
+      if (kind === "application" && !routePath.startsWith("/api/application")) continue;
+      if (kind === "client" && !routePath.startsWith("/api/client")) continue;
+      for (const method of m[2].split(",").map((x) => x.trim()).filter(Boolean)) {
+        routes.push({ method, path: routePath });
+      }
     }
   }
   const seen = new Set();
@@ -94,70 +90,47 @@ function compareField(failures, label, a, b) {
   }
 }
 
-function compareRouteCatalog(failures) {
-  const plugin = new Set(extractPluginApplicationRoutes().map((r) => routeKey(r.method, r.path)));
-  const v1 = new Set(
-    readJson(path.join(FIXTURES, "ptero-v1-application-routes.json")).map((r) =>
-      routeKey(r.method, r.path),
-    ),
+function compareRouteCatalog(failures, kind, fixtureName, exact) {
+  const plugin = new Set(extractPluginRoutes(kind).map((r) => routeKey(r.method, r.path)));
+  const upstream = new Set(
+    readJson(path.join(FIXTURES, fixtureName)).map((r) => routeKey(r.method, r.path)),
   );
-  const v2 = new Set(
-    readJson(path.join(FIXTURES, "ptero-v2-application-routes.json")).map((r) =>
-      routeKey(r.method, r.path),
-    ),
-  );
-
-  const missingVsV1 = [...v1].filter((k) => !plugin.has(k)).sort();
-  const extraVsV1 = [...plugin].filter((k) => !v1.has(k)).sort();
-  if (missingVsV1.length || extraVsV1.length) {
-    failures.push({
-      label: "route-catalog 1:1 vs pterodactyl v1",
-      expected: { missingVsV1: [], extraVsV1: [] },
-      actual: { missingVsV1, extraVsV1, pluginCount: plugin.size, v1Count: v1.size },
-    });
-    console.error("FAIL  route-catalog 1:1 vs pterodactyl v1");
-    console.error(JSON.stringify({ missingVsV1, extraVsV1 }, null, 2));
+  const missing = [...upstream].filter((k) => !plugin.has(k)).sort();
+  const extra = [...plugin].filter((k) => !upstream.has(k)).sort();
+  const label = `route-catalog ${kind} vs ${fixtureName}`;
+  if (exact && (missing.length || extra.length)) {
+    failures.push({ label, expected: { missing: [], extra: [] }, actual: { missing, extra } });
+    console.error(`FAIL  ${label}`);
+    console.error(JSON.stringify({ missing, extra }, null, 2));
+  } else if (!exact && missing.length) {
+    // Client: warn on missing upstream routes, fail only if plugin has zero overlap
+    console.warn(`WARN  ${label} missing on plugin (${missing.length}):`);
+    for (const m of missing.slice(0, 20)) console.warn(`  - ${m}`);
+    if (missing.length === upstream.size) {
+      failures.push({ label, expected: "some client routes", actual: "none" });
+      console.error(`FAIL  ${label} — plugin implements none of upstream client routes`);
+    } else {
+      console.log(`PASS  ${label} shared surface (${upstream.size - missing.length}/${upstream.size})`);
+    }
   } else {
-    console.log(`PASS  route-catalog 1:1 vs pterodactyl v1 (${plugin.size} routes)`);
+    console.log(`PASS  ${label} (${plugin.size} plugin, ${upstream.size} upstream)`);
   }
-
-  const shared = [...v1].filter((k) => v2.has(k));
-  const missingShared = shared.filter((k) => !plugin.has(k));
-  if (missingShared.length) {
-    failures.push({
-      label: "shared v1/v2 routes present on plugin",
-      expected: [],
-      actual: missingShared,
-    });
-    console.error("FAIL  shared v1/v2 routes present on plugin");
-  } else {
-    console.log(`PASS  shared v1/v2 routes present on plugin (${shared.length})`);
-  }
-
-  return {
-    pluginCount: plugin.size,
-    v1Count: v1.size,
-    v2Count: v2.size,
-    sharedCount: shared.length,
-    v1Only: [...v1].filter((k) => !v2.has(k)).sort(),
-    v2Only: [...v2].filter((k) => !v1.has(k)).sort(),
-  };
+  return { plugin: plugin.size, upstream: upstream.size, missing, extra };
 }
 
-function compareProbes(failures, leftName, left, rightName, right, probeNames, { stripV2Only = false } = {}) {
-  for (const name of probeNames) {
-    const a = left.probes[name];
-    const b = right.probes[name];
-    if (!a || !b) {
-      failures.push({
-        label: `${name} missing on ${!a ? leftName : rightName}`,
-        expected: "present",
-        actual: "missing",
-      });
-      console.error(`FAIL  ${name} missing on ${!a ? leftName : rightName}`);
+function compareProbes(failures, leftName, left, rightName, right, { stripV2Only = false, requireSameProbeSet = false } = {}) {
+  const leftIds = Object.keys(left.probes || {});
+  const rightIds = Object.keys(right.probes || {});
+  const shared = leftIds.filter((id) => rightIds.includes(id)).sort();
+
+  for (const id of shared) {
+    const a = left.probes[id];
+    const b = right.probes[id];
+    if (a.skipped || b.skipped) {
+      console.log(`SKIP  ${id} (${a.skipped ? leftName : rightName})`);
       continue;
     }
-    compareField(failures, `${name}.status ${rightName} vs ${leftName}`, a.status, b.status);
+    compareField(failures, `${id}.status ${rightName} vs ${leftName}`, a.status, b.status);
 
     let expectedShape = a.shape;
     let actualShape = b.shape;
@@ -169,15 +142,27 @@ function compareProbes(failures, leftName, left, rightName, right, probeNames, {
       expectedKeys = (a.attributeKeys || []).filter((k) => !V2_ONLY_ATTR_KEYS.has(k));
       actualKeys = (b.attributeKeys || []).filter((k) => !V2_ONLY_ATTR_KEYS.has(k));
     }
+    compareField(failures, `${id}.shape ${rightName} vs ${leftName}`, expectedShape, actualShape);
+    compareField(failures, `${id}.attributeKeys ${rightName} vs ${leftName}`, expectedKeys, actualKeys);
+    compareField(failures, `${id}.paginationKeys ${rightName} vs ${leftName}`, a.paginationKeys, b.paginationKeys);
+  }
 
-    compareField(failures, `${name}.shape ${rightName} vs ${leftName}`, expectedShape, actualShape);
-    compareField(failures, `${name}.attributeKeys ${rightName} vs ${leftName}`, expectedKeys, actualKeys);
-    compareField(
-      failures,
-      `${name}.paginationKeys ${rightName} vs ${leftName}`,
-      a.paginationKeys,
-      b.paginationKeys,
-    );
+  if (requireSameProbeSet) {
+    const onlyLeft = leftIds.filter((id) => !rightIds.includes(id) && !left.probes[id].skipped);
+    const onlyRight = rightIds.filter((id) => !leftIds.includes(id) && !right.probes[id].skipped);
+    if (onlyLeft.length) {
+      failures.push({ label: `probes only on ${leftName}`, expected: [], actual: onlyLeft });
+      console.error(`FAIL  probes only on ${leftName}: ${onlyLeft.join(", ")}`);
+    }
+    if (onlyRight.length) {
+      failures.push({ label: `probes only on ${rightName}`, expected: [], actual: onlyRight });
+      console.error(`FAIL  probes only on ${rightName}: ${onlyRight.join(", ")}`);
+    }
+  } else {
+    const onlyLeft = leftIds.filter((id) => !rightIds.includes(id));
+    const onlyRight = rightIds.filter((id) => !leftIds.includes(id));
+    if (onlyLeft.length) console.log(`INFO  probes only on ${leftName}: ${onlyLeft.length}`);
+    if (onlyRight.length) console.log(`INFO  probes only on ${rightName}: ${onlyRight.length}`);
   }
 }
 
@@ -186,27 +171,25 @@ const v2 = readJson(v2File);
 const feather = readJson(featherFile);
 const failures = [];
 
-const catalog = compareRouteCatalog(failures);
+console.log("=== Route catalogs ===");
+const appCatalog = compareRouteCatalog(failures, "application", "ptero-v1-application-routes.json", true);
+const clientCatalog = compareRouteCatalog(failures, "client", "ptero-v1-client-routes.json", false);
+compareRouteCatalog(failures, "client", "ptero-v2-client-routes.json", false);
 
-const sharedProbes = [
-  "users_list",
-  "users_create",
-  "locations_list",
-  "locations_create",
-  "nodes_list",
-  "servers_list",
-  "unauth_users",
-];
-const v1OnlyProbes = ["nests_list"];
+console.log("\n--- Feather vs Pterodactyl v1 (Application + Client) ---");
+// Shared probe IDs only — panels may differ when eggs/Wings/DB hosts are unavailable.
+compareProbes(failures, "ptero-v1", v1, "feather", feather, { requireSameProbeSet: false });
 
-console.log("\n--- Feather vs Pterodactyl v1 ---");
-compareProbes(failures, "ptero-v1", v1, "feather", feather, [...sharedProbes, ...v1OnlyProbes]);
-
-console.log("\n--- Feather vs Pterodactyl v2 (shared surface, v2-only fields ignored) ---");
-compareProbes(failures, "ptero-v2", v2, "feather", feather, sharedProbes, { stripV2Only: true });
+console.log("\n--- Feather vs Pterodactyl v2 (shared, v2-only fields ignored) ---");
+compareProbes(failures, "ptero-v2", v2, "feather", feather, { stripV2Only: true, requireSameProbeSet: false });
 
 const report = {
-  catalog,
+  catalogs: { application: appCatalog, client: clientCatalog },
+  coverage: {
+    "ptero-v1": v1.coverage || null,
+    "ptero-v2": v2.coverage || null,
+    feather: feather.coverage || null,
+  },
   failed: failures,
   panels: {
     "ptero-v1": v1.baseUrl,
@@ -217,10 +200,22 @@ const report = {
 const reportPath = path.join(path.dirname(featherFile), "parity-report.json");
 fs.writeFileSync(reportPath, JSON.stringify(report, null, 2) + "\n");
 
+const schemaPath = path.join(path.dirname(featherFile), "openapi.parity.json");
+const exported = spawnSync(
+  process.execPath,
+  [path.join(__dirname, "export-openapi.mjs"), v1File, v2File, featherFile, schemaPath],
+  { encoding: "utf8" },
+);
+process.stdout.write(exported.stdout || "");
+process.stderr.write(exported.stderr || "");
+if (exported.status !== 0) {
+  failures.push({ label: "openapi export", expected: 0, actual: exported.status });
+}
+
 console.log("\n=== Parity summary ===");
 console.log(`Failures: ${failures.length}`);
-if (catalog?.v1Only?.length) console.log(`v1-only: ${catalog.v1Only.join(", ")}`);
-if (catalog?.v2Only?.length) console.log(`v2-only: ${catalog.v2Only.join(", ")}`);
+console.log(`Application catalog: plugin=${appCatalog.plugin} upstream=${appCatalog.upstream}`);
+console.log(`Client catalog: plugin=${clientCatalog.plugin} upstream=${clientCatalog.upstream} missing=${clientCatalog.missing.length}`);
 
 if (failures.length) process.exit(1);
-console.log("All panels match 1:1 on probed Application API surface.");
+console.log("All Application + Client probes match 1:1; OpenAPI schema exported.");

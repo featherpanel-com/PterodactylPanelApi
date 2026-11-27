@@ -13,6 +13,7 @@ EMAIL="admin@parity.local"
 USERNAME="parityadmin"
 PASSWORD="ParityAdmin!123"
 API_KEY="ptla_parity_ci_featherpanel_admin_key_001"
+CLIENT_API_KEY="ptlc_parity_ci_featherpanel_client_key_001"
 
 echo "==> Bootstrapping FeatherPanel at ${BASE_URL}"
 
@@ -57,10 +58,13 @@ done
   );" 2>/dev/null || true
 
 "${COMPOSE[@]}" exec -T db mariadb -ufeatherpanel -pfeatherpanel_password featherpanel -e \
-  "DELETE FROM featherpanel_pterodactylpanelapi_pterodactyl_api_key WHERE \`key\`='${API_KEY}';
+  "DELETE FROM featherpanel_pterodactylpanelapi_pterodactyl_api_key
+     WHERE \`key\` IN ('${API_KEY}','${CLIENT_API_KEY}');
    INSERT INTO featherpanel_pterodactylpanelapi_pterodactyl_api_key
      (name, \`key\`, type, created_by, deleted)
-   VALUES ('parity-ci', '${API_KEY}', 'admin', ${USER_ID}, 'false');"
+   VALUES
+     ('parity-ci-admin', '${API_KEY}', 'admin', ${USER_ID}, 'false'),
+     ('parity-ci-client', '${CLIENT_API_KEY}', 'client', ${USER_ID}, 'false');"
 
 # Seed realms (Pterodactyl nests) so Application /nests returns a non-empty list like upstream v1.
 "${COMPOSE[@]}" exec -T db mariadb -ufeatherpanel -pfeatherpanel_password featherpanel -e \
@@ -92,9 +96,21 @@ if [[ "${code}" != "200" ]]; then
   exit 1
 fi
 
+ccode="$(curl -sS -o /tmp/fp-client-smoke.json -w '%{http_code}' \
+  -H "Authorization: Bearer ${CLIENT_API_KEY}" \
+  -H "Accept: application/json" \
+  "${BASE_URL}/api/client/account")"
+if [[ "${ccode}" != "200" ]]; then
+  echo "FeatherPanel plugin Client API smoke failed: HTTP ${ccode}" >&2
+  cat /tmp/fp-client-smoke.json >&2 || true
+  "${COMPOSE[@]}" logs --tail=80 backend >&2 || true
+  exit 1
+fi
+
 {
   echo "BASE_URL=${BASE_URL}"
   echo "API_KEY=${API_KEY}"
+  echo "CLIENT_API_KEY=${CLIENT_API_KEY}"
   echo "PANEL=feather"
   echo "MAJOR=feather"
 } > "${OUT_FILE}"

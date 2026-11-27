@@ -1,8 +1,9 @@
 <?php
 
 /**
- * Mint a full-ACL Application API key for the parity CI admin user.
- * Usage (inside panel container): php /parity/mint-ptero-app-key.php [1|2]
+ * Mint Application (ptla_) + Client (ptlc_) API keys for parity CI.
+ * Usage (inside panel container): php /tmp/mint-ptero-keys.php [1|2]
+ * Prints JSON: {"application":"ptla_...","client":"ptlc_..."}
  */
 
 declare(strict_types=1);
@@ -28,7 +29,24 @@ if ($user === null) {
     exit(1);
 }
 
-$permissions = [
+function mintKey(User $user, int $type, array $extra = []): string
+{
+    $secret = Str::random(ApiKey::KEY_LENGTH);
+    $identifier = ApiKey::generateTokenIdentifier($type);
+    $attrs = array_merge($extra, [
+        'user_id' => $user->id,
+        'key_type' => $type,
+        'identifier' => $identifier,
+        'token' => Crypt::encrypt($secret),
+        'memo' => 'parity-ci',
+        'allowed_ips' => null,
+    ]);
+    ApiKey::query()->forceCreate($attrs);
+
+    return $identifier . $secret;
+}
+
+$appPerms = [
     'r_servers' => AdminAcl::READ | AdminAcl::WRITE,
     'r_nodes' => AdminAcl::READ | AdminAcl::WRITE,
     'r_allocations' => AdminAcl::READ | AdminAcl::WRITE,
@@ -38,23 +56,14 @@ $permissions = [
     'r_database_hosts' => AdminAcl::READ | AdminAcl::WRITE,
     'r_server_databases' => AdminAcl::READ | AdminAcl::WRITE,
 ];
-
 if ($major === 1) {
-    $permissions['r_nests'] = AdminAcl::READ | AdminAcl::WRITE;
+    $appPerms['r_nests'] = AdminAcl::READ | AdminAcl::WRITE;
 }
 
-$secret = Str::random(ApiKey::KEY_LENGTH);
-$identifier = ApiKey::generateTokenIdentifier(ApiKey::TYPE_APPLICATION);
+$application = mintKey($user, ApiKey::TYPE_APPLICATION, $appPerms);
+$client = mintKey($user, ApiKey::TYPE_ACCOUNT);
 
-$attrs = array_merge($permissions, [
-    'user_id' => $user->id,
-    'key_type' => ApiKey::TYPE_APPLICATION,
-    'identifier' => $identifier,
-    'token' => Crypt::encrypt($secret),
-    'memo' => 'parity-ci',
-    'allowed_ips' => null,
-]);
-
-$key = ApiKey::query()->forceCreate($attrs);
-
-echo $key->identifier . $secret;
+echo json_encode([
+    'application' => $application,
+    'client' => $client,
+], JSON_UNESCAPED_SLASHES);
