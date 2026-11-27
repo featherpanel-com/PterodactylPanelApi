@@ -12,3 +12,7 @@ Frontend/App/**/*.tsbuildinfo
 # Other package manager lockfiles
 Frontend/App/yarn.lock
 Frontend/App/package-lock.json
+
+# API parity CI workspace
+tests/api-parity/.credentials/
+tests/api-parity/.plugin-mount/

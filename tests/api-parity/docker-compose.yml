@@ -1,0 +1,261 @@
+# Boots Pterodactyl v1, Pterodactyl v2, and FeatherPanel (with this plugin bind-mounted)
+# for live Application API parity checks in CI.
+name: pterodactylpanelapi-parity
+
+x-ptero-mail: &ptero-mail
+  MAIL_FROM: "noreply@parity.local"
+  MAIL_DRIVER: "smtp"
+  MAIL_HOST: "127.0.0.1"
+  MAIL_PORT: "1025"
+  MAIL_USERNAME: ""
+  MAIL_PASSWORD: ""
+  MAIL_ENCRYPTION: "true"
+
+services:
+  # ---------------------------------------------------------------------------
+  # Pterodactyl Panel v1 (1.x)
+  # ---------------------------------------------------------------------------
+  ptero-v1-db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_DATABASE: panel
+      MYSQL_USER: pterodactyl
+      MYSQL_PASSWORD: pteropass
+      MYSQL_ROOT_PASSWORD: pteroroot
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks: [parity]
+
+  ptero-v1-redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [parity]
+
+  ptero-v1:
+    image: ghcr.io/pterodactyl/panel:v1.15.2
+    depends_on:
+      ptero-v1-db:
+        condition: service_healthy
+      ptero-v1-redis:
+        condition: service_healthy
+    ports:
+      - "8081:80"
+    volumes:
+      - ptero_v1_var:/app/var
+      - ptero_v1_nginx:/etc/nginx/http.d
+      - ptero_v1_logs:/app/storage/logs
+    environment:
+      APP_URL: "http://127.0.0.1:8081"
+      APP_TIMEZONE: "UTC"
+      APP_SERVICE_AUTHOR: "noreply@parity.local"
+      APP_ENV: "production"
+      APP_ENVIRONMENT_ONLY: "false"
+      DB_HOST: ptero-v1-db
+      DB_PORT: "3306"
+      DB_DATABASE: panel
+      DB_USERNAME: pterodactyl
+      DB_PASSWORD: pteropass
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      QUEUE_DRIVER: redis
+      REDIS_HOST: ptero-v1-redis
+      HASHIDS_LENGTH: 8
+      <<: *ptero-mail
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    networks: [parity]
+
+  # ---------------------------------------------------------------------------
+  # Pterodactyl Panel v2 (2.x)
+  # ---------------------------------------------------------------------------
+  ptero-v2-db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: panel
+      MARIADB_USER: pterodactyl
+      MARIADB_PASSWORD: pteropass
+      MARIADB_ROOT_PASSWORD: pteroroot
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks: [parity]
+
+  ptero-v2-redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [parity]
+
+  ptero-v2:
+    image: ghcr.io/pterodactyl/panel:v2.0.0-beta.3
+    depends_on:
+      ptero-v2-db:
+        condition: service_healthy
+      ptero-v2-redis:
+        condition: service_healthy
+    ports:
+      - "8082:80"
+    volumes:
+      - ptero_v2_var:/app/var
+      - ptero_v2_nginx:/etc/nginx/http.d
+      - ptero_v2_logs:/app/storage/logs
+      - ptero_v2_extensions:/app/extensions
+      - ptero_v2_extension_assets:/app/public/assets/extensions
+    environment:
+      APP_URL: "http://127.0.0.1:8082"
+      APP_TIMEZONE: "UTC"
+      APP_SERVICE_AUTHOR: "noreply@parity.local"
+      APP_ENV: "production"
+      APP_DEBUG: "false"
+      APP_ENVIRONMENT_ONLY: "true"
+      DB_HOST: ptero-v2-db
+      DB_PORT: "3306"
+      DB_DATABASE: panel
+      DB_USERNAME: pterodactyl
+      DB_PASSWORD: pteropass
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      SESSION_CONNECTION: sessions
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: ptero-v2-redis
+      QUEUE_WORKER_ENABLED: "true"
+      SCHEDULER_ENABLED: "true"
+      MAIL_MAILER: smtp
+      MAIL_FROM_ADDRESS: "noreply@parity.local"
+      MAIL_HOST: "127.0.0.1"
+      MAIL_PORT: "1025"
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      MAIL_ENCRYPTION: "tls"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    networks: [parity]
+
+  # ---------------------------------------------------------------------------
+  # FeatherPanel + this plugin (bind-mounted into storage/addons)
+  # ---------------------------------------------------------------------------
+  feather-db:
+    image: mariadb:latest
+    environment:
+      MARIADB_ROOT_PASSWORD: featherpanel_root
+      MARIADB_DATABASE: featherpanel
+      MARIADB_USER: featherpanel
+      MARIADB_PASSWORD: featherpanel_password
+      MARIADB_AUTO_UPGRADE: "1"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mariadb-admin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-pfeatherpanel_root",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks: [parity]
+
+  feather-redis:
+    image: redis:latest
+    command: redis-server --appendonly yes --requirepass featherpanel_redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "featherpanel_redis", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [parity]
+
+  feather-backend:
+    image: ghcr.io/mythicalltd/featherpanel-backend:latest
+    depends_on:
+      feather-db:
+        condition: service_healthy
+      feather-redis:
+        condition: service_healthy
+    ports:
+      - "8083:80"
+    environment:
+      DATABASE_HOST: feather-db
+      DATABASE_PORT: "3306"
+      DATABASE_DATABASE: featherpanel
+      DATABASE_USER: featherpanel
+      DATABASE_PASSWORD: featherpanel_password
+      DATABASE_ENCRYPTION: xchacha20
+      REDIS_HOST: feather-redis
+      REDIS_PASSWORD: featherpanel_redis
+      TRUST_PROXY_HEADERS: "true"
+      PANEL_DOCKER_DEPLOYMENT: "true"
+      FRANKENPHP_WORKER: "true"
+    volumes:
+      - feather_attachments:/var/www/html/public/attachments
+      - feather_config:/var/www/html/storage/config
+      - feather_snapshots:/var/www/html/storage/backups
+      - feather_logs:/var/www/html/storage/logs
+      - feather_translations:/var/www/html/public/translations
+      - feather_data:/var/www/html/storage/data
+      - feather_pma:/var/www/html/public/pma
+      - feather_webmail:/var/www/html/public/webmail
+      # Prepared plugin tree (see scripts/prepare-plugin-mount.sh).
+      - ./.plugin-mount/pterodactylpanelapi:/var/www/html/storage/addons/pterodactylpanelapi
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS -o /dev/null http://127.0.0.1/api/system/health || curl -fsS -o /dev/null http://127.0.0.1/api/system/settings",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 40
+      start_period: 180s
+    networks: [parity]
+
+volumes:
+  ptero_v1_var:
+  ptero_v1_nginx:
+  ptero_v1_logs:
+  ptero_v2_var:
+  ptero_v2_nginx:
+  ptero_v2_logs:
+  ptero_v2_extensions:
+  ptero_v2_extension_assets:
+  feather_attachments:
+  feather_config:
+  feather_snapshots:
+  feather_logs:
+  feather_translations:
+  feather_data:
+  feather_pma:
+  feather_webmail:
+
+networks:
+  parity:
+    driver: bridge
