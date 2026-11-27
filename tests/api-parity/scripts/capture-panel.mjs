@@ -217,6 +217,9 @@ async function runApplicationSuite(env, probes, ctx) {
     record(probes, "app.nodes.show", "application", await appReq(env, "GET", `/api/application/nodes/${ctx.nodeId}`));
     record(probes, "app.nodes.show.include", "application", await appReq(env, "GET", `/api/application/nodes/${ctx.nodeId}`, undefined, { include: "allocations,location" }));
     record(probes, "app.nodes.configuration", "application", await appReq(env, "GET", `/api/application/nodes/${ctx.nodeId}/configuration`));
+    // Partial PATCH: Feather accepts name/description; upstream Ptero requires the full
+    // node schema and may also fail syncing Wings config without a daemon. Compared as
+    // status-flexible in compare-snapshots.mjs.
     record(
       probes,
       "app.nodes.update",
@@ -224,17 +227,6 @@ async function runApplicationSuite(env, probes, ctx) {
       await appReq(env, "PATCH", `/api/application/nodes/${ctx.nodeId}`, {
         name: `parity-node-${SEED}-u`,
         description: "parity",
-        location_id: ctx.locationId,
-        fqdn: "127.0.0.1",
-        scheme: "http",
-        memory: 1024,
-        memory_overallocate: 0,
-        disk: 10240,
-        disk_overallocate: 0,
-        upload_size: 100,
-        daemon_listen: 8080,
-        daemon_sftp: 2022,
-        daemon_base: "/var/lib/pterodactyl/volumes",
       }),
     );
     record(probes, "app.nodes.allocations.list", "application", await appReq(env, "GET", `/api/application/nodes/${ctx.nodeId}/allocations`, undefined, { per_page: 10 }));

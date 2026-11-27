@@ -129,6 +129,9 @@ const CONTENT_FLEXIBLE_PROBES = new Set([
   "app.servers.create.validation",
 ]);
 
+// Upstream PATCH /nodes is PUT-like + Wings sync; Feather allows partial DB updates.
+const STATUS_FLEXIBLE_PROBES = new Set(["app.nodes.update"]);
+
 function compareProbes(failures, leftName, left, rightName, right, { stripV2Only = false, requireSameProbeSet = false } = {}) {
   const leftIds = Object.keys(left.probes || {});
   const rightIds = Object.keys(right.probes || {});
@@ -152,6 +155,11 @@ function compareProbes(failures, leftName, left, rightName, right, { stripV2Only
         continue;
       }
     }
+    if (STATUS_FLEXIBLE_PROBES.has(id) && a.status !== b.status) {
+      console.log(`INFO  ${id} status-flexible ${a.status} vs ${b.status} — OK`);
+      continue;
+    }
+
     compareField(failures, `${id}.status ${rightName} vs ${leftName}`, a.status, b.status);
 
     let expectedShape = a.shape;
