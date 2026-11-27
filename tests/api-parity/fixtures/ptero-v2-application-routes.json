@@ -1,0 +1,166 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/application/users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/users/{user}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/users/external/{external_id}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/application/users"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/application/users/{user}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/application/users/{user}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/nodes"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/nodes/deployable"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/nodes/{node}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/nodes/{node}/configuration"
+  },
+  {
+    "method": "POST",
+    "path": "/api/application/nodes"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/application/nodes/{node}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/application/nodes/{node}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/nodes/{node}/allocations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/application/nodes/{node}/allocations"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/application/nodes/{node}/allocations/{allocation}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/locations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/locations/{location}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/application/locations"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/application/locations/{location}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/application/locations/{location}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/eggs"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/eggs/{egg}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/tags"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/tags/{tag}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/servers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/servers/{server}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/servers/external/{external_id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/application/servers/{server}/details"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/application/servers/{server}/build"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/application/servers/{server}/startup"
+  },
+  {
+    "method": "POST",
+    "path": "/api/application/servers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/application/servers/{server}/suspend"
+  },
+  {
+    "method": "POST",
+    "path": "/api/application/servers/{server}/unsuspend"
+  },
+  {
+    "method": "POST",
+    "path": "/api/application/servers/{server}/reinstall"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/application/servers/{server}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/servers/{server}/databases"
+  },
+  {
+    "method": "GET",
+    "path": "/api/application/servers/{server}/databases/{database}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/application/servers/{server}/databases"
+  },
+  {
+    "method": "POST",
+    "path": "/api/application/servers/{server}/databases/{database}/reset-password"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/application/servers/{server}/databases/{database}"
+  }
+]

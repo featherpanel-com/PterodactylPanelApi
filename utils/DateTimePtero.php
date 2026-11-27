@@ -22,12 +22,16 @@ class DateTimePtero
     /**
      * Format a date string to the Pterodactyl API format.
      *
-     * @param string $date the date string to format
+     * @param string|null $date the date string to format
      *
-     * @return string the formatted date string
+     * @return string|null the formatted date string, or null when unset
      */
-    public static function format(string $date): string
+    public static function format(?string $date): ?string
     {
+        if ($date === null || $date === '') {
+            return null;
+        }
+
         $dt = new \DateTime($date);
 
         return $dt->format('Y-m-d\TH:i:sP');

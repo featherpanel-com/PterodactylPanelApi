@@ -302,7 +302,7 @@ class UsersController
                         'last_name' => $row['last_name'] ?? null,
                         'language' => 'en',
                         'root_admin' => (bool) (PermissionHelper::hasPermission($row['uuid'], Permissions::ADMIN_ROOT) ?? false),
-                        '2fa' => $row['two_fa_enabled'],
+                        '2fa' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::boolValue($row['two_fa_enabled']),
                         'created_at' => DateTimePtero::format($row['first_seen']) ?? DateTimePtero::format($row['first_seen']),
                         'updated_at' => DateTimePtero::format($row['last_seen']) ?? DateTimePtero::format($row['last_seen']),
                     ],
@@ -365,7 +365,7 @@ class UsersController
                 'attributes' => $userData['user'],
             ];
 
-            if ($includeServers && !empty($userData['servers'])) {
+            if ($includeServers) {
                 $serverData = [];
                 foreach ($userData['servers'] as $server) {
                     $serverData[] = [
@@ -431,10 +431,19 @@ class UsersController
                     'per_page' => $perPage,
                     'current_page' => $page,
                     'total_pages' => $totalPages,
-                    'links' => [
-                        'previous' => App::getInstance(true)->getConfig()->getSetting(ConfigInterface::APP_URL, 'http://localhost') . '/api/application/users?page=' . ($page - 1),
-                        'next' => App::getInstance(true)->getConfig()->getSetting(ConfigInterface::APP_URL, 'http://localhost') . '/api/application/users?page=' . ($page + 1),
-                    ],
+                    'links' => (static function () use ($page, $totalPages, $request): object {
+                        $links = [];
+                        $base = App::getInstance(true)->getConfig()->getSetting(ConfigInterface::APP_URL, 'http://localhost') . '/api/application/users';
+                        $query = $request->query->all() ?? [];
+                        if ($page > 1) {
+                            $links['previous'] = $base . '?' . http_build_query(array_merge($query, ['page' => $page - 1]));
+                        }
+                        if ($page < $totalPages) {
+                            $links['next'] = $base . '?' . http_build_query(array_merge($query, ['page' => $page + 1]));
+                        }
+
+                        return \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::paginationLinks($links);
+                    })(),
                 ],
             ],
         ];
@@ -640,7 +649,7 @@ class UsersController
             'last_name' => $user['last_name'] ?? null,
             'language' => 'en',
             'root_admin' => (bool) (PermissionHelper::hasPermission($user['uuid'], Permissions::ADMIN_ROOT) ?? false),
-            '2fa' => $user['two_fa_enabled'],
+            '2fa' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::boolValue($user['two_fa_enabled']),
             'created_at' => DateTimePtero::format($user['first_seen']) ?? DateTimePtero::format($user['first_seen']),
             'updated_at' => DateTimePtero::format($user['last_seen']) ?? DateTimePtero::format($user['last_seen']),
         ];
@@ -905,7 +914,7 @@ class UsersController
             'last_name' => $user['last_name'] ?? null,
             'language' => 'en',
             'root_admin' => (bool) (PermissionHelper::hasPermission($user['uuid'], Permissions::ADMIN_ROOT) ?? false),
-            '2fa' => $user['two_fa_enabled'],
+            '2fa' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::boolValue($user['two_fa_enabled']),
             'created_at' => DateTimePtero::format($user['first_seen']) ?? DateTimePtero::format($user['first_seen']),
             'updated_at' => DateTimePtero::format($user['last_seen']) ?? DateTimePtero::format($user['last_seen']),
         ];
@@ -1202,42 +1211,59 @@ class UsersController
             ], 500);
         }
 
-        // Send welcome email (following Admin API pattern)
-        $config = App::getInstance(true)->getConfig();
-        \App\Mail\templates\Welcome::send([
-            'email' => $data['email'],
-            'subject' => 'Welcome to ' . $config->getSetting(ConfigInterface::APP_NAME, 'FeatherPanel'),
-            'app_name' => $config->getSetting(ConfigInterface::APP_NAME, 'FeatherPanel'),
-            'app_url' => $config->getSetting(ConfigInterface::APP_URL, 'featherpanel.mythical.systems'),
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
-            'username' => $data['username'],
-            'app_support_url' => $config->getSetting(ConfigInterface::APP_SUPPORT_URL, 'https://discord.mythical.systems'),
-            'uuid' => $data['uuid'],
-            'enabled' => $config->getSetting(ConfigInterface::SMTP_ENABLED, 'false'),
-        ]);
-
-        // Create activity logs (following Admin API pattern)
-        \App\Chat\Activity::createActivity([
-            'user_uuid' => $data['uuid'],
-            'name' => 'register',
-            'context' => 'User registered via Pterodactyl API',
-            'ip_address' => '0.0.0.0',
-        ]);
-
-        // Get the requesting user safely
-        $requestingUser = $request->get('user');
-        if ($requestingUser && isset($requestingUser['uuid'])) {
-            \App\Chat\Activity::createActivity([
-                'user_uuid' => $requestingUser['uuid'],
-                'name' => 'create_user',
-                'context' => 'Created a new user ' . $data['username'] . ' via Pterodactyl API',
-                'ip_address' => \App\CloudFlare\CloudFlareRealIP::getRealIP(),
+        // Side effects must not fail the API response (SMTP/templates/activity can throw).
+        try {
+            $config = App::getInstance(true)->getConfig();
+            \App\Mail\templates\Welcome::send([
+                'email' => $data['email'],
+                'subject' => 'Welcome to ' . $config->getSetting(ConfigInterface::APP_NAME, 'FeatherPanel'),
+                'app_name' => $config->getSetting(ConfigInterface::APP_NAME, 'FeatherPanel'),
+                'app_url' => $config->getSetting(ConfigInterface::APP_URL, 'featherpanel.mythical.systems'),
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'username' => $data['username'],
+                'app_support_url' => $config->getSetting(ConfigInterface::APP_SUPPORT_URL, 'https://discord.mythical.systems'),
+                'uuid' => $data['uuid'],
+                'enabled' => $config->getSetting(ConfigInterface::SMTP_ENABLED, 'false'),
             ]);
+        } catch (\Throwable $e) {
+            // ignore mail failures
+        }
+
+        try {
+            \App\Chat\Activity::createActivity([
+                'user_uuid' => $data['uuid'],
+                'name' => 'register',
+                'context' => 'User registered via Pterodactyl API',
+                'ip_address' => '0.0.0.0',
+            ]);
+
+            $requestingUser = $request->attributes->get('user') ?? $request->get('user');
+            if (is_array($requestingUser) && isset($requestingUser['uuid'])) {
+                \App\Chat\Activity::createActivity([
+                    'user_uuid' => $requestingUser['uuid'],
+                    'name' => 'create_user',
+                    'context' => 'Created a new user ' . $data['username'] . ' via Pterodactyl API',
+                    'ip_address' => \App\CloudFlare\CloudFlareRealIP::getRealIP(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // ignore activity failures
         }
 
         // Get the created user for response
         $createdUser = User::getUserById($userId);
+        if (!$createdUser) {
+            return ApiResponse::sendManualResponse([
+                'errors' => [
+                    [
+                        'code' => 'InternalServerError',
+                        'status' => '500',
+                        'detail' => 'User was created but could not be loaded',
+                    ],
+                ],
+            ], 500);
+        }
 
         // Return the created user in Pterodactyl API format
         $responseData = [
@@ -1252,9 +1278,9 @@ class UsersController
                 'last_name' => $createdUser['last_name'],
                 'language' => 'en',
                 'root_admin' => (bool) (PermissionHelper::hasPermission($createdUser['uuid'], Permissions::ADMIN_ROOT) ?? false),
-                '2fa' => (bool) $createdUser['two_fa_enabled'],
-                'created_at' => DateTimePtero::format($createdUser['first_seen']),
-                'updated_at' => DateTimePtero::format($createdUser['last_seen']),
+                '2fa' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::boolValue($createdUser['two_fa_enabled'] ?? false),
+                'created_at' => DateTimePtero::format($createdUser['first_seen'] ?? null) ?? DateTimePtero::format(gmdate('c')),
+                'updated_at' => DateTimePtero::format($createdUser['last_seen'] ?? null) ?? DateTimePtero::format(gmdate('c')),
             ],
             'meta' => [
                 'resource' => App::getInstance(true)->getConfig()->getSetting(ConfigInterface::APP_URL, 'http://localhost') . '/api/application/users/' . $createdUser['id'],
@@ -1532,9 +1558,9 @@ class UsersController
                 'last_name' => $updatedUser['last_name'],
                 'language' => 'en',
                 'root_admin' => (bool) (PermissionHelper::hasPermission($updatedUser['uuid'], Permissions::ADMIN_ROOT) ?? false),
-                '2fa' => (bool) $updatedUser['two_fa_enabled'],
-                'created_at' => DateTimePtero::format($updatedUser['first_seen']),
-                'updated_at' => DateTimePtero::format($updatedUser['last_seen']),
+                '2fa' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::boolValue($updatedUser['two_fa_enabled'] ?? false),
+                'created_at' => DateTimePtero::format($updatedUser['first_seen'] ?? null) ?? DateTimePtero::format(gmdate('c')),
+                'updated_at' => DateTimePtero::format($updatedUser['last_seen'] ?? null) ?? DateTimePtero::format(gmdate('c')),
             ],
         ];
 

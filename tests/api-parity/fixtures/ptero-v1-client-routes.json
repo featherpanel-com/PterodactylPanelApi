@@ -1,0 +1,278 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/client"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/permissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/account"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/account/two-factor"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/account/two-factor"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/account/two-factor/disable"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/client/account/email"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/client/account/password"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/account/activity"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/account/api-keys"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/account/api-keys"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/client/account/api-keys/{identifier}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/account/ssh-keys"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/account/ssh-keys"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/account/ssh-keys/remove"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/websocket"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/resources"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/activity"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/command"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/power"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/databases"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/databases"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/databases/{database}/rotate-password"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/client/servers/{server}/databases/{database}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/files/list"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/files/contents"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/files/download"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/client/servers/{server}/files/rename"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/files/copy"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/files/write"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/files/compress"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/files/decompress"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/files/delete"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/files/create-folder"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/files/chmod"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/files/pull"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/files/upload"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/schedules"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/schedules"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/schedules/{schedule}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/schedules/{schedule}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/schedules/{schedule}/execute"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/client/servers/{server}/schedules/{schedule}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/schedules/{schedule}/tasks"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/schedules/{schedule}/tasks/{task}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/client/servers/{server}/schedules/{schedule}/tasks/{task}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/network/allocations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/network/allocations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/network/allocations/{allocation}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/network/allocations/{allocation}/primary"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/client/servers/{server}/network/allocations/{allocation}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/users/{user}"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/users/{user}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/client/servers/{server}/users/{user}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/backups"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/backups"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/backups/{backup}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/backups/{backup}/download"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/backups/{backup}/lock"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/backups/{backup}/restore"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/client/servers/{server}/backups/{backup}"
+  },
+  {
+    "method": "GET",
+    "path": "/api/client/servers/{server}/startup"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/client/servers/{server}/startup/variable"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/settings/rename"
+  },
+  {
+    "method": "POST",
+    "path": "/api/client/servers/{server}/settings/reinstall"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/client/servers/{server}/settings/docker-image"
+  }
+]

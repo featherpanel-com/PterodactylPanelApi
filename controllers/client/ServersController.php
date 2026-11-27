@@ -196,6 +196,11 @@ class ServersController
 
         $count = count($data);
 
+        $links = [];
+        if ($page < $totalPages) {
+            $links['next'] = $this->buildPaginationLink($request, $page + 1, $perPage);
+        }
+
         $meta = [
             'pagination' => [
                 'total' => $total,
@@ -203,13 +208,9 @@ class ServersController
                 'per_page' => $perPage,
                 'current_page' => $page,
                 'total_pages' => $totalPages,
-                'links' => [],
+                'links' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::paginationLinks($links),
             ],
         ];
-
-        if ($page < $totalPages) {
-            $meta['pagination']['links']['next'] = $this->buildPaginationLink($request, $page + 1, $perPage);
-        }
 
         return ApiResponse::sendManualResponse([
             'object' => 'list',

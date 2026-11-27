@@ -24,4 +24,5 @@ README.md
 */App/*
 .git/
 .github/
+tests/
 build-release.sh

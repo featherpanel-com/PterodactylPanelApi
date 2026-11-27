@@ -50,12 +50,7 @@ class PterodactylApiChat
         }
 
         $normalizedType = self::normalizeType($type);
-        if ($normalizedType === 'client' && $createdBy !== null) {
-            // Include legacy keys stored as admin before client type was persisted correctly.
-            $conditions[] = '(`type` = :type OR (`type` = \'admin\' AND `created_by` = :legacy_created_by))';
-            $params['type'] = 'client';
-            $params['legacy_created_by'] = $createdBy;
-        } elseif ($normalizedType !== null) {
+        if ($normalizedType !== null) {
             $conditions[] = '`type` = :type';
             $params['type'] = $normalizedType;
         }
@@ -137,12 +132,7 @@ class PterodactylApiChat
         }
 
         $normalizedType = self::normalizeType($type);
-        if ($normalizedType === 'client' && $createdBy !== null) {
-            // Include legacy keys stored as admin before client type was persisted correctly.
-            $conditions[] = '(`type` = :type OR (`type` = \'admin\' AND `created_by` = :legacy_created_by))';
-            $params['type'] = 'client';
-            $params['legacy_created_by'] = $createdBy;
-        } elseif ($normalizedType !== null) {
+        if ($normalizedType !== null) {
             $conditions[] = '`type` = :type';
             $params['type'] = $normalizedType;
         }

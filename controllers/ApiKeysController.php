@@ -21,6 +21,8 @@ use App\Helpers\ApiResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Addons\pterodactylpanelapi\chat\PterodactylApiChat;
+use App\Addons\pterodactylpanelapi\utils\DateTimePtero;
+use App\Addons\pterodactylpanelapi\utils\PterodactylResponse;
 
 class ApiKeysController
 {
@@ -39,6 +41,18 @@ class ApiKeysController
         $offset = ($page - 1) * $limit;
         $keys = PterodactylApiChat::getAll($search, $limit, $offset, $context['type'], $context['owner_id']);
         $total = PterodactylApiChat::getCount($search, $context['type'], $context['owner_id']);
+
+        if ($this->wantsClientFractal($context)) {
+            $data = [];
+            foreach ($keys as $key) {
+                $data[] = $this->fractalApiKey($key);
+            }
+
+            return ApiResponse::sendManualResponse([
+                'object' => 'list',
+                'data' => $data,
+            ], 200);
+        }
 
         $totalPages = (int) ceil($total / max(1, $limit));
         $from = $total === 0 ? 0 : (($page - 1) * $limit + 1);
@@ -93,8 +107,58 @@ class ApiKeysController
         }
 
         $data = json_decode($request->getContent(), true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
+        if (!is_array($data)) {
+            $data = [];
+        }
+        if (json_last_error() !== JSON_ERROR_NONE && $request->getContent() !== '') {
             return ApiResponse::error('Invalid JSON in request body', 'INVALID_JSON', 400);
+        }
+
+        $actor = $context['user'];
+        $actorId = is_array($actor) && isset($actor['id']) ? (int) $actor['id'] : null;
+
+        if ($context['owner_id'] !== null) {
+            $createdBy = $context['owner_id'];
+        } else {
+            $createdBy = isset($data['created_by']) ? (int) $data['created_by'] : $actorId;
+        }
+
+        if ($createdBy === null) {
+            return ApiResponse::error('created_by is required', 'MISSING_REQUIRED_FIELDS', 400);
+        }
+        $createdBy = (int) $createdBy;
+        if ($createdBy <= 0) {
+            return ApiResponse::error('created_by must be a positive integer', 'INVALID_DATA_TYPE', 400);
+        }
+
+        // Pterodactyl Client API: { description, allowed_ips } — generate the secret.
+        if ($this->wantsClientFractal($context)) {
+            $description = $data['description'] ?? $data['name'] ?? 'API Key';
+            if (!is_string($description) || trim($description) === '') {
+                return PterodactylResponse::error('ValidationException', 422, 'A description is required.');
+            }
+            $secret = bin2hex(random_bytes(16));
+            $identifier = 'ptlc_' . substr(bin2hex(random_bytes(8)), 0, 12);
+            $fullKey = $identifier . $secret;
+            $id = PterodactylApiChat::create([
+                'name' => trim($description),
+                'key' => $fullKey,
+                'type' => 'client',
+                'last_used' => null,
+                'created_by' => $createdBy,
+            ]);
+            if (!$id) {
+                return PterodactylResponse::error('DisplayException', 500, 'Failed to create API key.');
+            }
+            $key = PterodactylApiChat::getById($id);
+
+            return ApiResponse::sendManualResponse([
+                'object' => 'api_key',
+                'attributes' => $this->fractalApiKeyAttributes($key, $identifier, []),
+                'meta' => [
+                    'secret_token' => $secret,
+                ],
+            ], 200);
         }
 
         $required = ['name', 'key'];
@@ -119,23 +183,6 @@ class ApiKeysController
                 return ApiResponse::error('Invalid datetime for last_used', 'INVALID_DATA_TYPE', 400);
             }
             $data['last_used'] = date('Y-m-d H:i:s', $ts);
-        }
-
-        $actor = $context['user'];
-        $actorId = is_array($actor) && isset($actor['id']) ? (int) $actor['id'] : null;
-
-        if ($context['owner_id'] !== null) {
-            $createdBy = $context['owner_id'];
-        } else {
-            $createdBy = isset($data['created_by']) ? (int) $data['created_by'] : $actorId;
-        }
-
-        if ($createdBy === null) {
-            return ApiResponse::error('created_by is required', 'MISSING_REQUIRED_FIELDS', 400);
-        }
-        $createdBy = (int) $createdBy;
-        if ($createdBy <= 0) {
-            return ApiResponse::error('created_by must be a positive integer', 'INVALID_DATA_TYPE', 400);
         }
 
         $insertData = [
@@ -210,7 +257,7 @@ class ApiKeysController
         return ApiResponse::success(['key' => $key], 'API key updated successfully', 200);
     }
 
-    public function delete(Request $request, int $id): Response
+    public function delete(Request $request, int|string $id): Response
     {
         try {
             $context = $this->resolveContext($request);
@@ -218,17 +265,78 @@ class ApiKeysController
             return ApiResponse::error('Authentication required', 'AUTH_REQUIRED', 401);
         }
 
-        $existing = PterodactylApiChat::getById($id);
+        $existing = $this->findKey($id);
         $response = $this->ensureAccessible($existing, $context);
         if ($response !== null) {
             return $response;
         }
-        $ok = PterodactylApiChat::delete($id);
+        $ok = PterodactylApiChat::delete((int) $existing['id']);
         if (!$ok) {
             return ApiResponse::error('Failed to delete API key', 'API_KEY_DELETE_FAILED', 400);
         }
 
+        if ($this->wantsClientFractal($context)) {
+            return new Response('', 204);
+        }
+
         return ApiResponse::success([], 'API key deleted successfully', 200);
+    }
+
+    private function wantsClientFractal(array $context): bool
+    {
+        return ($context['type'] ?? null) === 'client' || ($context['scope'] ?? null) === 'self';
+    }
+
+    private function findKey(int|string $idOrIdentifier): ?array
+    {
+        if (is_numeric($idOrIdentifier)) {
+            return PterodactylApiChat::getById((int) $idOrIdentifier);
+        }
+
+        $identifier = (string) $idOrIdentifier;
+        $exact = PterodactylApiChat::getByKey($identifier);
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        // Client delete uses the public identifier prefix (ptlc_xxxx...).
+        $keys = PterodactylApiChat::getAll(null, 100, 0, 'client', null);
+        foreach ($keys as $key) {
+            $full = (string) ($key['key'] ?? '');
+            if ($full === $identifier || str_starts_with($full, $identifier)) {
+                return $key;
+            }
+        }
+
+        return null;
+    }
+
+    private function fractalApiKey(array $key): array
+    {
+        return [
+            'object' => 'api_key',
+            'attributes' => $this->fractalApiKeyAttributes($key),
+        ];
+    }
+
+    private function fractalApiKeyAttributes(array $key, ?string $identifier = null, mixed $allowedIps = null): array
+    {
+        $full = (string) ($key['key'] ?? '');
+        if ($identifier === null) {
+            if (preg_match('/^(ptl[ac]_[A-Za-z0-9]+)/', $full, $m)) {
+                $identifier = $m[1];
+            } else {
+                $identifier = substr($full, 0, 16);
+            }
+        }
+
+        return [
+            'identifier' => $identifier,
+            'description' => (string) ($key['name'] ?? ''),
+            'allowed_ips' => $allowedIps,
+            'last_used_at' => DateTimePtero::format($key['last_used'] ?? null),
+            'created_at' => DateTimePtero::format($key['created_at'] ?? null) ?? DateTimePtero::format(gmdate('c')),
+        ];
     }
 
     /**

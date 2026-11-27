@@ -150,7 +150,7 @@ class NestsController
                 'object' => 'nest',
                 'attributes' => [
                     'id' => (int) $nest['id'],
-                    'uuid' => $nest['uuid'] ?? null,
+                    'uuid' => $nest['uuid'] ?? \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::nestUuid((int) $nest['id']),
                     'author' => 'help@mythical.systems',
                     'name' => $nest['name'],
                     'description' => $nest['description'],
@@ -288,7 +288,7 @@ class NestsController
                     'per_page' => $perPage,
                     'current_page' => $page,
                     'total_pages' => $totalPages,
-                    'links' => $links,
+                    'links' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::paginationLinks($links),
                 ],
             ],
         ];
@@ -381,7 +381,7 @@ class NestsController
             'object' => 'nest',
             'attributes' => [
                 'id' => (int) $nest['id'],
-                'uuid' => $nest['uuid'] ?? null,
+                'uuid' => $nest['uuid'] ?? \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::nestUuid((int) $nest['id']),
                 'author' => 'help@mythical.systems',
                 'name' => $nest['name'],
                 'description' => $nest['description'],
@@ -684,7 +684,7 @@ class NestsController
                     'object' => 'nest',
                     'attributes' => [
                         'id' => (int) $nest['id'],
-                        'uuid' => $nest['uuid'] ?? null,
+                        'uuid' => $nest['uuid'] ?? \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::nestUuid((int) $nest['id']),
                         'author' => 'help@mythical.systems',
                         'name' => $nest['name'],
                         'description' => $nest['description'],
@@ -725,7 +725,7 @@ class NestsController
                     'per_page' => $perPage,
                     'current_page' => $page,
                     'total_pages' => $totalPages,
-                    'links' => $links,
+                    'links' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::paginationLinks($links),
                 ],
             ],
         ];
@@ -930,7 +930,7 @@ class NestsController
                 'object' => 'nest',
                 'attributes' => [
                     'id' => (int) $nest['id'],
-                    'uuid' => $nest['uuid'] ?? null,
+                    'uuid' => $nest['uuid'] ?? \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::nestUuid((int) $nest['id']),
                     'author' => 'help@mythical.systems',
                     'name' => $nest['name'],
                     'description' => $nest['description'],

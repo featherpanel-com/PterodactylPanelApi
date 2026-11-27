@@ -78,26 +78,8 @@ return function (RouteCollection $routes) {
         ['POST']
     ));
 
-    // Update server database (PATCH)
-    $routes->add('pterodactylpanelapi-databases-update', new Route(
-        '/api/application/servers/{serverId}/databases/{databaseId}',
-        [
-            '_controller' => function ($request, $parameters) {
-                return (new DatabasesController())->update($request, $parameters['serverId'], $parameters['databaseId']);
-            },
-            '_middleware' => [
-                PterodactylKeyAuth::class,
-            ],
-            'required_pterodactyl_key_type' => 'admin',
-        ],
-        ['serverId' => '[a-zA-Z0-9\-]+', 'databaseId' => '\d+'], // requirements
-        [], // options
-        '', // host
-        [], // schemes
-        ['PATCH']
-    ));
-
     // Reset database password (POST)
+    // Note: Pterodactyl Application API has no PATCH for databases; keep 1:1 with upstream.
     $routes->add('pterodactylpanelapi-databases-reset-password', new Route(
         '/api/application/servers/{serverId}/databases/{databaseId}/reset-password',
         [

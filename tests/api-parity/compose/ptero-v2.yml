@@ -1,0 +1,85 @@
+name: parity-ptero-v2
+
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: panel
+      MARIADB_USER: pterodactyl
+      MARIADB_PASSWORD: pteropass
+      MARIADB_ROOT_PASSWORD: pteroroot
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  panel:
+    image: ghcr.io/pterodactyl/panel:v2.0.0-beta.3
+    # Keep image CMD explicitly — overriding entrypoint alone drops it in Compose.
+    # v2 entrypoint only boots nginx/php when $1 is "supervisord".
+    entrypoint: ["/bin/ash", "/parity/ptero-entrypoint.sh"]
+    command: ["supervisord", "-n", "-c", "/etc/supervisord.conf"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8082:80"
+    volumes:
+      - panel_var:/app/var
+      - panel_nginx:/etc/nginx/http.d
+      - panel_logs:/app/storage/logs
+      - panel_extensions:/app/extensions
+      - panel_extension_assets:/app/public/assets/extensions
+      - ../scripts/ptero-entrypoint.sh:/parity/ptero-entrypoint.sh:ro
+    environment:
+      APP_URL: "http://127.0.0.1:8082"
+      APP_TIMEZONE: "UTC"
+      APP_SERVICE_AUTHOR: "noreply@parity.local"
+      APP_ENV: "production"
+      APP_DEBUG: "false"
+      APP_ENVIRONMENT_ONLY: "false"
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: panel
+      DB_USERNAME: pterodactyl
+      DB_PASSWORD: pteropass
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      SESSION_CONNECTION: sessions
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      QUEUE_WORKER_ENABLED: "true"
+      SCHEDULER_ENABLED: "true"
+      MAIL_MAILER: smtp
+      MAIL_FROM_ADDRESS: "noreply@parity.local"
+      MAIL_HOST: "127.0.0.1"
+      MAIL_PORT: "1025"
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      MAIL_ENCRYPTION: "tls"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+volumes:
+  panel_var:
+  panel_nginx:
+  panel_logs:
+  panel_extensions:
+  panel_extension_assets:

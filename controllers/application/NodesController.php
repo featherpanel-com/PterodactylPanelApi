@@ -24,6 +24,7 @@ use App\Chat\Location;
 use App\Chat\Allocation;
 use App\Helpers\ApiResponse;
 use OpenApi\Attributes as OA;
+use App\Config\ConfigInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Addons\pterodactylpanelapi\utils\DateTimePtero;
@@ -326,7 +327,7 @@ class NodesController
                     'per_page' => $perPage,
                     'current_page' => $page,
                     'total_pages' => $totalPages,
-                    'links' => $links,
+                    'links' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::paginationLinks($links),
                 ],
             ],
         ];
@@ -683,6 +684,17 @@ class NodesController
 
         // Apply pagination to filtered results
         $total = count($deployableNodes);
+        if ($total === 0) {
+            return ApiResponse::sendManualResponse([
+                'errors' => [
+                    [
+                        'code' => 'NoViableNodeException',
+                        'status' => '400',
+                        'detail' => 'No nodes satisfying the requirements specified for automatic deployment could be found.',
+                    ],
+                ],
+            ], 400);
+        }
         $paginatedNodes = array_slice($deployableNodes, $offset, $perPage);
 
         // Build response data
@@ -770,7 +782,7 @@ class NodesController
                     'per_page' => $perPage,
                     'current_page' => $page,
                     'total_pages' => $totalPages,
-                    'links' => $links,
+                    'links' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::paginationLinks($links),
                 ],
             ],
         ];
@@ -1120,6 +1132,9 @@ class NodesController
                     'memory' => 0,
                     'disk' => 0,
                 ],
+            ],
+            'meta' => [
+                'resource' => App::getInstance(true)->getConfig()->getSetting(ConfigInterface::APP_URL, 'http://localhost') . '/api/application/nodes/' . $createdNode['id'],
             ],
         ];
 
@@ -1591,18 +1606,12 @@ class NodesController
             'remote' => $panelUrl,
         ];
 
-        // Add SSL configuration if the node uses HTTPS
-        if ($node['scheme'] === 'https') {
-            $configuration['api']['ssl'] = [
-                'enabled' => true,
-                'cert' => '/etc/ssl/certs/wings.crt',
-                'key' => '/etc/ssl/private/wings.key',
-            ];
-        } else {
-            $configuration['api']['ssl'] = [
-                'enabled' => false,
-            ];
-        }
+        // Pterodactyl always exposes cert/key paths, even when SSL is disabled.
+        $configuration['api']['ssl'] = [
+            'enabled' => $node['scheme'] === 'https',
+            'cert' => '/etc/letsencrypt/live/' . ($node['fqdn'] ?? 'node') . '/fullchain.pem',
+            'key' => '/etc/letsencrypt/live/' . ($node['fqdn'] ?? 'node') . '/privkey.pem',
+        ];
 
         // Add proxy configuration if the node is behind a proxy
         if ($node['behind_proxy']) {
@@ -1740,7 +1749,7 @@ class NodesController
                 'attributes' => [
                     'id' => (int) $allocation['id'],
                     'ip' => $allocation['ip'],
-                    'ip_alias' => $allocation['ip_alias'],
+                    'alias' => $allocation['ip_alias'],
                     'port' => (int) $allocation['port'],
                     'notes' => $allocation['notes'],
                     'assigned' => (bool) $allocation['server_id'],
@@ -1772,7 +1781,7 @@ class NodesController
                     'per_page' => $perPage,
                     'current_page' => $page,
                     'total_pages' => $totalPages,
-                    'links' => $links,
+                    'links' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::paginationLinks($links),
                 ],
             ],
         ];
@@ -2048,37 +2057,8 @@ class NodesController
             ], 500);
         }
 
-        // Fetch the created allocations with full data
-        $createdAllocations = [];
-        foreach ($createdIds as $id) {
-            $allocation = Allocation::getById($id);
-            if ($allocation) {
-                $createdAllocations[] = $allocation;
-            }
-        }
-
-        // Format response data
-        $data = [];
-        foreach ($createdAllocations as $allocation) {
-            $data[] = [
-                'object' => 'allocation',
-                'attributes' => [
-                    'id' => (int) $allocation['id'],
-                    'ip' => $allocation['ip'],
-                    'ip_alias' => $allocation['ip_alias'],
-                    'port' => (int) $allocation['port'],
-                    'notes' => $allocation['notes'],
-                    'assigned' => (bool) $allocation['server_id'],
-                ],
-            ];
-        }
-
-        $response = [
-            'object' => 'list',
-            'data' => $data,
-        ];
-
-        return ApiResponse::sendManualResponse($response, 201);
+        // Pterodactyl Application API returns 204 No Content on successful allocation create.
+        return new Response('', 204);
     }
 
     /**
