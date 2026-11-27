@@ -42,25 +42,13 @@ class PterodactylKeyAuth
 
         $authHeader = $request->headers->get('Authorization');
         if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-            return ApiResponse::sendManualResponse([
-                'errors' => [
-                    'code' => 'AuthenticationException',
-                    'status' => 401,
-                    'detail' => 'Unauthenticated.',
-                ],
-            ], 401);
+            return PterodactylResponse::error('AuthenticationException', 401, 'Unauthenticated.');
         }
 
         $providedKey = $matches[1];
         $record = PterodactylApiChat::getByKey($providedKey);
         if ($record === null || ($record['deleted'] ?? 'false') === 'true') {
-            return ApiResponse::sendManualResponse([
-                'errors' => [
-                    'code' => 'AuthenticationException',
-                    'status' => 401,
-                    'detail' => 'Unauthenticated.',
-                ],
-            ], 401);
+            return PterodactylResponse::error('AuthenticationException', 401, 'Unauthenticated.');
         }
 
         $requiredType = $request->attributes->get('required_pterodactyl_key_type');
@@ -73,13 +61,7 @@ class PterodactylKeyAuth
             }
         }
         if ($requiredType !== null && $record['type'] !== $requiredType) {
-            return ApiResponse::sendManualResponse([
-                'errors' => [
-                    'code' => 'AuthorizationException',
-                    'status' => 403,
-                    'detail' => 'Forbidden.',
-                ],
-            ], 403);
+            return PterodactylResponse::error('AuthorizationException', 403, 'Forbidden.');
         }
 
         PterodactylApiChat::update((int) $record['id'], ['last_used' => date('Y-m-d H:i:s')]);

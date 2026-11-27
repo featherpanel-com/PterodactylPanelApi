@@ -2,6 +2,9 @@
 /**
  * Compare panel snapshots + Application route catalog.
  * Usage: node compare-snapshots.mjs <ptero-v1.json> <ptero-v2.json> <feather.json>
+ *
+ * Feather must match Pterodactyl v1 Application API 1:1.
+ * Vs v2, compare status + the shared attribute surface (v2-only fields stripped).
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -10,6 +13,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../../..");
 const FIXTURES = path.resolve(__dirname, "../fixtures");
+
+const V2_ONLY_ATTR_KEYS = new Set(["avatar", "relationships", "extensions"]);
 
 const [, , v1File, v2File, featherFile] = process.argv;
 if (!v1File || !v2File || !featherFile) {
@@ -55,6 +60,27 @@ function extractPluginApplicationRoutes() {
 
 function stable(v) {
   return JSON.stringify(v);
+}
+
+function stripV2OnlyFromShape(shape) {
+  if (!shape || typeof shape !== "object" || Array.isArray(shape)) return shape;
+  const out = {};
+  for (const [k, v] of Object.entries(shape)) {
+    if (k === "attributes" && v && typeof v === "object" && !Array.isArray(v)) {
+      const attrs = {};
+      for (const [ak, av] of Object.entries(v)) {
+        if (!V2_ONLY_ATTR_KEYS.has(ak)) attrs[ak] = stripV2OnlyFromShape(av);
+      }
+      out[k] = attrs;
+      continue;
+    }
+    if (k === "data" && Array.isArray(v) && v[0] === "array" && v[1] && typeof v[1] === "object") {
+      out[k] = ["array", stripV2OnlyFromShape(v[1])];
+      continue;
+    }
+    out[k] = stripV2OnlyFromShape(v);
+  }
+  return out;
 }
 
 function compareField(failures, label, a, b) {
@@ -118,7 +144,7 @@ function compareRouteCatalog(failures) {
   };
 }
 
-function compareProbes(failures, leftName, left, rightName, right, probeNames) {
+function compareProbes(failures, leftName, left, rightName, right, probeNames, { stripV2Only = false } = {}) {
   for (const name of probeNames) {
     const a = left.probes[name];
     const b = right.probes[name];
@@ -132,13 +158,20 @@ function compareProbes(failures, leftName, left, rightName, right, probeNames) {
       continue;
     }
     compareField(failures, `${name}.status ${rightName} vs ${leftName}`, a.status, b.status);
-    compareField(failures, `${name}.shape ${rightName} vs ${leftName}`, a.shape, b.shape);
-    compareField(
-      failures,
-      `${name}.attributeKeys ${rightName} vs ${leftName}`,
-      a.attributeKeys,
-      b.attributeKeys,
-    );
+
+    let expectedShape = a.shape;
+    let actualShape = b.shape;
+    let expectedKeys = a.attributeKeys;
+    let actualKeys = b.attributeKeys;
+    if (stripV2Only) {
+      expectedShape = stripV2OnlyFromShape(a.shape);
+      actualShape = stripV2OnlyFromShape(b.shape);
+      expectedKeys = (a.attributeKeys || []).filter((k) => !V2_ONLY_ATTR_KEYS.has(k));
+      actualKeys = (b.attributeKeys || []).filter((k) => !V2_ONLY_ATTR_KEYS.has(k));
+    }
+
+    compareField(failures, `${name}.shape ${rightName} vs ${leftName}`, expectedShape, actualShape);
+    compareField(failures, `${name}.attributeKeys ${rightName} vs ${leftName}`, expectedKeys, actualKeys);
     compareField(
       failures,
       `${name}.paginationKeys ${rightName} vs ${leftName}`,
@@ -169,8 +202,8 @@ const v1OnlyProbes = ["nests_list"];
 console.log("\n--- Feather vs Pterodactyl v1 ---");
 compareProbes(failures, "ptero-v1", v1, "feather", feather, [...sharedProbes, ...v1OnlyProbes]);
 
-console.log("\n--- Feather vs Pterodactyl v2 (shared surface) ---");
-compareProbes(failures, "ptero-v2", v2, "feather", feather, sharedProbes);
+console.log("\n--- Feather vs Pterodactyl v2 (shared surface, v2-only fields ignored) ---");
+compareProbes(failures, "ptero-v2", v2, "feather", feather, sharedProbes, { stripV2Only: true });
 
 const report = {
   catalog,

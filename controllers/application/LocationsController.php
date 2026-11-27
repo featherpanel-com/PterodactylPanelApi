@@ -25,6 +25,7 @@ use App\Helpers\ApiResponse;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use App\Config\ConfigInterface;
 use App\Addons\pterodactylpanelapi\utils\DateTimePtero;
 
 #[OA\Tag(name: 'Plugin - Pterodactyl API - Locations', description: 'Location management endpoints for Pterodactyl Panel API plugin')]
@@ -283,7 +284,7 @@ class LocationsController
                     'per_page' => $perPage,
                     'current_page' => $page,
                     'total_pages' => $totalPages,
-                    'links' => $links,
+                    'links' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::paginationLinks($links),
                 ],
             ],
         ];
@@ -617,6 +618,7 @@ class LocationsController
         }
 
         // Format response
+        $appUrl = App::getInstance(true)->getConfig()->getSetting(ConfigInterface::APP_URL, 'http://localhost');
         $responseData = [
             'object' => 'location',
             'attributes' => [
@@ -625,6 +627,9 @@ class LocationsController
                 'long' => $createdLocation['description'],
                 'created_at' => DateTimePtero::format($createdLocation['created_at']),
                 'updated_at' => DateTimePtero::format($createdLocation['updated_at']),
+            ],
+            'meta' => [
+                'resource' => rtrim((string) $appUrl, '/') . '/api/application/locations/' . $createdLocation['id'],
             ],
         ];
 

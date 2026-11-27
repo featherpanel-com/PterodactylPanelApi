@@ -714,7 +714,7 @@ class ServersController
                     'per_page' => $perPage,
                     'current_page' => $page,
                     'total_pages' => $totalPages,
-                    'links' => $links,
+                    'links' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::paginationLinks($links),
                 ],
             ],
         ];

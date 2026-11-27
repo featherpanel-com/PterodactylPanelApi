@@ -62,9 +62,24 @@ done
      (name, \`key\`, type, created_by, deleted)
    VALUES ('parity-ci', '${API_KEY}', 'admin', ${USER_ID}, 'false');"
 
+# Seed realms (Pterodactyl nests) so Application /nests returns a non-empty list like upstream v1.
+"${COMPOSE[@]}" exec -T db mariadb -ufeatherpanel -pfeatherpanel_password featherpanel -e \
+  "INSERT INTO featherpanel_realms (name, description)
+   SELECT 'Minecraft', 'Minecraft related eggs and services.' FROM DUAL
+   WHERE NOT EXISTS (SELECT 1 FROM featherpanel_realms WHERE name='Minecraft');
+   INSERT INTO featherpanel_realms (name, description)
+   SELECT 'Source Engine', 'Includes SourceFlds and other Source engine games.' FROM DUAL
+   WHERE NOT EXISTS (SELECT 1 FROM featherpanel_realms WHERE name='Source Engine');
+   INSERT INTO featherpanel_realms (name, description)
+   SELECT 'Voice Servers', 'Voice servers such as Mumble and Teamspeak 3.' FROM DUAL
+   WHERE NOT EXISTS (SELECT 1 FROM featherpanel_realms WHERE name='Voice Servers');
+   INSERT INTO featherpanel_realms (name, description)
+   SELECT 'Rust', 'Rust eggs related to game hosting.' FROM DUAL
+   WHERE NOT EXISTS (SELECT 1 FROM featherpanel_realms WHERE name='Rust');"
+
 "${COMPOSE[@]}" restart backend
 sleep 5
-"$(dirname "${BASH_SOURCE[0]}")/wait-http.sh" "${BASE_URL}/api/system/settings" 300 "feather-backend (post-restart)"
+"$(dirname "${BASH_SOURCE[0]}")/wait-http.sh" "${BASE_URL}/api/system/settings" 180 "feather-backend (post-restart)"
 
 code="$(curl -sS -o /tmp/fp-smoke.json -w '%{http_code}' \
   -H "Authorization: Bearer ${API_KEY}" \

@@ -72,4 +72,43 @@ final class PterodactylResponse
 
         return str_contains(strtolower($acceptHeader), 'application/vnd.pterodactyl.v1+json');
     }
+
+    /**
+     * Pterodactyl Fractal pagination uses an object for links ({} when empty), never a JSON array.
+     *
+     * @param array<string, string> $links
+     */
+    public static function paginationLinks(array $links): object
+    {
+        return (object) $links;
+    }
+
+    public static function boolValue(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_numeric($value)) {
+            return (int) $value !== 0;
+        }
+
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    /**
+     * FeatherPanel realms no longer store a uuid; synthesize a stable one for nest responses.
+     */
+    public static function nestUuid(int $id): string
+    {
+        $hash = md5('pterodactylpanelapi:nest:' . $id);
+
+        return sprintf(
+            '%s-%s-%s-%s-%s',
+            substr($hash, 0, 8),
+            substr($hash, 8, 4),
+            '5' . substr($hash, 13, 3),
+            '8' . substr($hash, 17, 3),
+            substr($hash, 20, 12)
+        );
+    }
 }

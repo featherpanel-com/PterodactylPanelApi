@@ -302,7 +302,7 @@ class UsersController
                         'last_name' => $row['last_name'] ?? null,
                         'language' => 'en',
                         'root_admin' => (bool) (PermissionHelper::hasPermission($row['uuid'], Permissions::ADMIN_ROOT) ?? false),
-                        '2fa' => $row['two_fa_enabled'],
+                        '2fa' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::boolValue($row['two_fa_enabled']),
                         'created_at' => DateTimePtero::format($row['first_seen']) ?? DateTimePtero::format($row['first_seen']),
                         'updated_at' => DateTimePtero::format($row['last_seen']) ?? DateTimePtero::format($row['last_seen']),
                     ],
@@ -431,10 +431,19 @@ class UsersController
                     'per_page' => $perPage,
                     'current_page' => $page,
                     'total_pages' => $totalPages,
-                    'links' => [
-                        'previous' => App::getInstance(true)->getConfig()->getSetting(ConfigInterface::APP_URL, 'http://localhost') . '/api/application/users?page=' . ($page - 1),
-                        'next' => App::getInstance(true)->getConfig()->getSetting(ConfigInterface::APP_URL, 'http://localhost') . '/api/application/users?page=' . ($page + 1),
-                    ],
+                    'links' => (static function () use ($page, $totalPages, $request): object {
+                        $links = [];
+                        $base = App::getInstance(true)->getConfig()->getSetting(ConfigInterface::APP_URL, 'http://localhost') . '/api/application/users';
+                        $query = $request->query->all() ?? [];
+                        if ($page > 1) {
+                            $links['previous'] = $base . '?' . http_build_query(array_merge($query, ['page' => $page - 1]));
+                        }
+                        if ($page < $totalPages) {
+                            $links['next'] = $base . '?' . http_build_query(array_merge($query, ['page' => $page + 1]));
+                        }
+
+                        return \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::paginationLinks($links);
+                    })(),
                 ],
             ],
         ];
@@ -640,7 +649,7 @@ class UsersController
             'last_name' => $user['last_name'] ?? null,
             'language' => 'en',
             'root_admin' => (bool) (PermissionHelper::hasPermission($user['uuid'], Permissions::ADMIN_ROOT) ?? false),
-            '2fa' => $user['two_fa_enabled'],
+            '2fa' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::boolValue($user['two_fa_enabled']),
             'created_at' => DateTimePtero::format($user['first_seen']) ?? DateTimePtero::format($user['first_seen']),
             'updated_at' => DateTimePtero::format($user['last_seen']) ?? DateTimePtero::format($user['last_seen']),
         ];
@@ -905,7 +914,7 @@ class UsersController
             'last_name' => $user['last_name'] ?? null,
             'language' => 'en',
             'root_admin' => (bool) (PermissionHelper::hasPermission($user['uuid'], Permissions::ADMIN_ROOT) ?? false),
-            '2fa' => $user['two_fa_enabled'],
+            '2fa' => \App\Addons\pterodactylpanelapi\utils\PterodactylResponse::boolValue($user['two_fa_enabled']),
             'created_at' => DateTimePtero::format($user['first_seen']) ?? DateTimePtero::format($user['first_seen']),
             'updated_at' => DateTimePtero::format($user['last_seen']) ?? DateTimePtero::format($user['last_seen']),
         ];
