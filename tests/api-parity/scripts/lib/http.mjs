@@ -1,5 +1,6 @@
 export const APP_ACCEPT = "application/vnd.pterodactyl.v1+json";
-export const CLIENT_ACCEPT = "application/json";
+// Client API also uses the Pterodactyl Accept token in this translation layer.
+export const CLIENT_ACCEPT = "application/vnd.pterodactyl.v1+json";
 
 export function shapeOf(value, depth = 0) {
   if (depth > 10) return "deep";
@@ -70,10 +71,24 @@ export async function request(baseUrl, apiKey, method, routePath, { body, accept
 }
 
 export function normalizeRoutePath(p) {
-  return p
-    .replace(/\{[^}]+\}/g, "{id}")
-    .replace(/\/+/g, "/")
-    .replace(/\/$/, "") || "/";
+  return (
+    p
+      // Template params
+      .replace(/\{[^}]+\}/g, "{id}")
+      // Concrete UUIDs
+      .replace(
+        /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+        "/{id}",
+      )
+      // Concrete numeric ids
+      .replace(/\/\d+/g, "/{id}")
+      // External-id style segments (non-reserved single path tokens after /external/)
+      .replace(/\/external\/[^/]+/g, "/external/{id}")
+      // API key identifiers like ptlc_xxx
+      .replace(/\/ptl[ac]_[A-Za-z0-9]+/g, "/{id}")
+      .replace(/\/+/g, "/")
+      .replace(/\/$/, "") || "/"
+  );
 }
 
 export function routeKey(method, p) {

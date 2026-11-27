@@ -770,10 +770,30 @@ async function main() {
     console.error(`client.account.show failed with status ${probes["client.account.show"].status}`);
     process.exit(1);
   }
-  // Fail if too many plugin routes never got a hit (allow some server-scoped when no server)
-  if (coverage.missingApplicationRouteHits.length > 8) {
-    console.error("Too many Application routes not exercised:", coverage.missingApplicationRouteHits);
+  // Application routes that need a live Wings daemon may remain unhit in CI.
+  const unexpectedAppMiss = coverage.missingApplicationRouteHits.filter((k) => {
+    if (k.includes("/servers/{id}")) return false; // Wings-backed nested server routes
+    if (k.includes("/databases")) return false;
+    return true;
+  });
+  if (unexpectedAppMiss.length) {
+    console.error("Application routes not exercised:", unexpectedAppMiss);
     process.exit(1);
+  }
+
+  // Client account/API-key routes must always be hit; server-scoped ones need Wings.
+  const unexpectedClientMiss = coverage.missingClientRouteHits.filter((k) => {
+    if (k.includes("/servers/{id}")) return false;
+    return true;
+  });
+  if (unexpectedClientMiss.length) {
+    console.error("Client routes not exercised:", unexpectedClientMiss);
+    process.exit(1);
+  }
+  if (coverage.missingClientRouteHits.length && !ctx.serverIdentifier) {
+    console.log(
+      `INFO  ${coverage.missingClientRouteHits.length} client server routes unhit (no Wings server) — OK`,
+    );
   }
 }
 

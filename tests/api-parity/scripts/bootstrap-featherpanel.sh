@@ -81,6 +81,23 @@ done
    SELECT 'Rust', 'Rust eggs related to game hosting.' FROM DUAL
    WHERE NOT EXISTS (SELECT 1 FROM featherpanel_realms WHERE name='Rust');"
 
+# FeatherPanel ships Calagopus client-compat routes at /api/client/* with AuthMiddleware
+# (Feather ApiClient Bearer keys). Those are registered before addon routes, so they
+# shadow this plugin's Pterodactyl Client API. Disable them for parity so ptlc_ keys
+# hit PterodactylKeyAuth + our Controllers\Client\* handlers instead.
+echo "==> Disabling FeatherPanel Calagopus /api/client shadow routes"
+"${COMPOSE[@]}" exec -T backend sh -c '
+  set -e
+  for f in /var/www/html/app/routes/user/calagopus-client.php; do
+    if [ -f "$f" ]; then
+      mv "$f" "${f}.disabled-for-parity"
+      echo "disabled $f"
+    else
+      echo "WARN: $f not found (image layout may have changed)" >&2
+    fi
+  done
+'
+
 "${COMPOSE[@]}" restart backend
 sleep 5
 "$(dirname "${BASH_SOURCE[0]}")/wait-http.sh" "${BASE_URL}/api/system/settings" 180 "feather-backend (post-restart)"
@@ -96,14 +113,19 @@ if [[ "${code}" != "200" ]]; then
   exit 1
 fi
 
+# Verify both keys landed in the plugin table before smoke.
+"${COMPOSE[@]}" exec -T db mariadb -N -ufeatherpanel -pfeatherpanel_password featherpanel -e \
+  "SELECT type, \`key\` FROM featherpanel_pterodactylpanelapi_pterodactyl_api_key WHERE deleted='false';" \
+  | tr -d '\r' || true
+
 ccode="$(curl -sS -o /tmp/fp-client-smoke.json -w '%{http_code}' \
   -H "Authorization: Bearer ${CLIENT_API_KEY}" \
-  -H "Accept: application/json" \
+  -H "Accept: application/vnd.pterodactyl.v1+json" \
   "${BASE_URL}/api/client/account")"
 if [[ "${ccode}" != "200" ]]; then
   echo "FeatherPanel plugin Client API smoke failed: HTTP ${ccode}" >&2
   cat /tmp/fp-client-smoke.json >&2 || true
-  "${COMPOSE[@]}" logs --tail=80 backend >&2 || true
+  "${COMPOSE[@]}" logs --tail=120 backend >&2 || true
   exit 1
 fi
 
