@@ -70,7 +70,10 @@ final class PterodactylResponse
             return true;
         }
 
-        return str_contains(strtolower($acceptHeader), 'application/vnd.pterodactyl.v1+json');
+        $accept = strtolower($acceptHeader);
+        // Upstream Pterodactyl also accepts plain application/json for Application API clients.
+        return str_contains($accept, 'application/vnd.pterodactyl.v1+json')
+            || str_contains($accept, 'application/json');
     }
 
     /**

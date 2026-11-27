@@ -154,7 +154,7 @@ class ApiKeysController
 
             return ApiResponse::sendManualResponse([
                 'object' => 'api_key',
-                'attributes' => $this->fractalApiKeyAttributes($key, $identifier),
+                'attributes' => $this->fractalApiKeyAttributes($key, $identifier, []),
                 'meta' => [
                     'secret_token' => $secret,
                 ],
@@ -319,7 +319,7 @@ class ApiKeysController
         ];
     }
 
-    private function fractalApiKeyAttributes(array $key, ?string $identifier = null): array
+    private function fractalApiKeyAttributes(array $key, ?string $identifier = null, mixed $allowedIps = null): array
     {
         $full = (string) ($key['key'] ?? '');
         if ($identifier === null) {
@@ -333,7 +333,7 @@ class ApiKeysController
         return [
             'identifier' => $identifier,
             'description' => (string) ($key['name'] ?? ''),
-            'allowed_ips' => [],
+            'allowed_ips' => $allowedIps,
             'last_used_at' => DateTimePtero::format($key['last_used'] ?? null),
             'created_at' => DateTimePtero::format($key['created_at'] ?? null) ?? DateTimePtero::format(gmdate('c')),
         ];

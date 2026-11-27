@@ -224,6 +224,17 @@ async function runApplicationSuite(env, probes, ctx) {
       await appReq(env, "PATCH", `/api/application/nodes/${ctx.nodeId}`, {
         name: `parity-node-${SEED}-u`,
         description: "parity",
+        location_id: ctx.locationId,
+        fqdn: "127.0.0.1",
+        scheme: "http",
+        memory: 1024,
+        memory_overallocate: 0,
+        disk: 10240,
+        disk_overallocate: 0,
+        upload_size: 100,
+        daemon_listen: 8080,
+        daemon_sftp: 2022,
+        daemon_base: "/var/lib/pterodactyl/volumes",
       }),
     );
     record(probes, "app.nodes.allocations.list", "application", await appReq(env, "GET", `/api/application/nodes/${ctx.nodeId}/allocations`, undefined, { per_page: 10 }));
@@ -663,12 +674,14 @@ async function cleanupApplication(env, ctx, probes) {
   if (ctx.serverId) {
     record(probes, "app.servers.delete", "application", await appReq(env, "DELETE", `/api/application/servers/${ctx.serverId}`));
   }
-  if (ctx.allocationId2 && ctx.nodeId) {
+  // Feather refuses node delete while any allocations remain (Ptero cascades).
+  for (const allocId of [ctx.allocationId2, ctx.allocationId].filter(Boolean)) {
+    if (!ctx.nodeId) break;
     record(
       probes,
-      "app.nodes.allocations.delete",
+      allocId === ctx.allocationId2 ? "app.nodes.allocations.delete" : "app.nodes.allocations.delete.primary",
       "application",
-      await appReq(env, "DELETE", `/api/application/nodes/${ctx.nodeId}/allocations/${ctx.allocationId2}`),
+      await appReq(env, "DELETE", `/api/application/nodes/${ctx.nodeId}/allocations/${allocId}`),
     );
   }
   if (ctx.nodeId) {

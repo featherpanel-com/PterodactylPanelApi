@@ -365,7 +365,7 @@ class UsersController
                 'attributes' => $userData['user'],
             ];
 
-            if ($includeServers && !empty($userData['servers'])) {
+            if ($includeServers) {
                 $serverData = [];
                 foreach ($userData['servers'] as $server) {
                     $serverData[] = [
