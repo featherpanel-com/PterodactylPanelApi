@@ -274,7 +274,16 @@ async function runApplicationSuite(env, probes, ctx) {
     record(probes, "app.tags.list", "application", tags);
   }
 
-  // --- Servers (needs allocation + egg + user) ---
+  // --- Servers ---
+  // Happy-path POST /servers hard-requires Wings (daemon create). Without Wings, upstream
+  // rolls back and returns 500. Always capture validation 422, then try create opportunistically.
+  record(
+    probes,
+    "app.servers.create.validation",
+    "application",
+    await appReq(env, "POST", "/api/application/servers", { name: "x" }),
+  );
+
   if (ctx.userId && ctx.allocationId) {
     let eggId = ctx.eggId;
     let nestId = ctx.nestId;
@@ -295,13 +304,18 @@ async function runApplicationSuite(env, probes, ctx) {
       };
       if (nestId) serverBody.nest = nestId;
       const serverCreate = await appReq(env, "POST", "/api/application/servers", serverBody);
-      record(probes, "app.servers.create", "application", serverCreate);
-      ctx.serverId = pickId(serverCreate.json);
-      ctx.serverExternal = `${SEED}-srv`;
-      ctx.serverUuid = pickUuid(serverCreate.json);
-      ctx.serverIdentifier =
-        serverCreate.json?.attributes?.identifier ||
-        (ctx.serverUuid ? String(ctx.serverUuid).slice(0, 8) : null);
+      record(probes, "app.servers.create", "application", serverCreate, {
+        wingsRequired: true,
+        note: "201 only when Wings is reachable; 500/rollback is expected in CI without daemon",
+      });
+      if ([200, 201].includes(serverCreate.status)) {
+        ctx.serverId = pickId(serverCreate.json);
+        ctx.serverExternal = `${SEED}-srv`;
+        ctx.serverUuid = pickUuid(serverCreate.json);
+        ctx.serverIdentifier =
+          serverCreate.json?.attributes?.identifier ||
+          (ctx.serverUuid ? String(ctx.serverUuid).slice(0, 8) : null);
+      }
 
       if (ctx.serverId) {
         // Set external id via details patch
@@ -349,11 +363,21 @@ async function runApplicationSuite(env, probes, ctx) {
         record(probes, "app.servers.unsuspend", "application", await appReq(env, "POST", `/api/application/servers/${ctx.serverId}/unsuspend`));
         record(probes, "app.servers.reinstall", "application", await appReq(env, "POST", `/api/application/servers/${ctx.serverId}/reinstall`));
 
-        // Databases (may 503/500 without DB host — still capture shape)
+        // Databases need a DB host (not creatable via Application API).
         record(probes, "app.servers.databases.list", "application", await appReq(env, "GET", `/api/application/servers/${ctx.serverId}/databases`));
+        record(
+          probes,
+          "app.servers.databases.create.validation",
+          "application",
+          await appReq(env, "POST", `/api/application/servers/${ctx.serverId}/databases`, {
+            database: `parity_${SEED}`.slice(0, 48),
+            remote: "%",
+          }),
+        );
         const dbCreate = await appReq(env, "POST", `/api/application/servers/${ctx.serverId}/databases`, {
           database: `parity_${SEED}`.slice(0, 48),
           remote: "%",
+          host: 1,
         });
         record(probes, "app.servers.databases.create", "application", dbCreate);
         ctx.databaseId = pickId(dbCreate.json);
@@ -367,16 +391,23 @@ async function runApplicationSuite(env, probes, ctx) {
           );
         }
       }
+    } else {
+      probes["app.servers.create"] = {
+        id: "app.servers.create",
+        api: "application",
+        skipped: true,
+        reason: "no egg id available to attempt server create",
+        wingsRequired: true,
+      };
     }
-  }
-
-  // Mark skips for routes we couldn't hit due to missing deps
-  for (const [id, reason] of Object.entries({
-    "app.servers.create": !ctx.serverId && "missing egg/allocation/user deps or create failed",
-  })) {
-    if (!probes[id] && reason) {
-      probes[id] = { id, api: "application", skipped: true, reason };
-    }
+  } else {
+    probes["app.servers.create"] = {
+      id: "app.servers.create",
+      api: "application",
+      skipped: true,
+      reason: "missing user/allocation deps",
+      wingsRequired: true,
+    };
   }
 }
 
