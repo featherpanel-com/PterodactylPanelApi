@@ -81,6 +81,25 @@ done
    SELECT 'Rust', 'Rust eggs related to game hosting.' FROM DUAL
    WHERE NOT EXISTS (SELECT 1 FROM featherpanel_realms WHERE name='Rust');"
 
+# Seed one spell (egg) under Minecraft so /nests/{id}/eggs/{id} can be exercised.
+"${COMPOSE[@]}" exec -T db mariadb -ufeatherpanel -pfeatherpanel_password featherpanel -e \
+  "INSERT INTO featherpanel_spells
+     (uuid, realm_id, author, name, description, docker_images, startup, script_container, script_entry)
+   SELECT
+     'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+     id,
+     'parity@local',
+     'Parity Paper',
+     'CI seed egg for API parity',
+     '{\"java\":\"ghcr.io/pterodactyl/yolks:java_17\"}',
+     'java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar {{SERVER_JARFILE}}',
+     'alpine:3.4',
+     'ash'
+   FROM featherpanel_realms
+   WHERE name='Minecraft'
+     AND NOT EXISTS (SELECT 1 FROM featherpanel_spells WHERE name='Parity Paper')
+   LIMIT 1;"
+
 # FeatherPanel ships Calagopus client-compat routes at /api/client/* with AuthMiddleware
 # (Feather ApiClient Bearer keys). Those are registered before addon routes, so they
 # shadow this plugin's Pterodactyl Client API. Disable them for parity so ptlc_ keys

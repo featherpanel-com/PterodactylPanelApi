@@ -770,10 +770,16 @@ async function main() {
     console.error(`client.account.show failed with status ${probes["client.account.show"].status}`);
     process.exit(1);
   }
-  // Application routes that need a live Wings daemon may remain unhit in CI.
+  // Application routes that need Wings / panel-specific resources may remain unhit in CI.
+  const major = String(env.MAJOR || panelId);
   const unexpectedAppMiss = coverage.missingApplicationRouteHits.filter((k) => {
     if (k.includes("/servers/{id}")) return false; // Wings-backed nested server routes
+    if (k.includes("/servers/external")) return false; // needs a created server
     if (k.includes("/databases")) return false;
+    // Pterodactyl v2 removed /nests in favor of /eggs + /tags.
+    if (major === "2" && k.includes("/api/application/nests")) return false;
+    // Egg show needs at least one egg/spell seeded.
+    if (k.includes("/nests/{id}/eggs/{id}") && !ctx.eggId) return false;
     return true;
   });
   if (unexpectedAppMiss.length) {
