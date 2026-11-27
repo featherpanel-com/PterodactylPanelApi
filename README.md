@@ -76,7 +76,6 @@ All endpoints require a valid API key to be provided in the `Authorization` head
 | `/api/application/servers/{serverId}/databases`                             | GET    | List server databases   | Yes (API Key) | `/api/application/servers/42/databases`                  |
 | `/api/application/servers/{serverId}/databases/{databaseId}`                | GET    | Get database details    | Yes (API Key) | `/api/application/servers/42/databases/1`                |
 | `/api/application/servers/{serverId}/databases`                             | POST   | Create server database  | Yes (API Key) | `/api/application/servers/42/databases`                  |
-| `/api/application/servers/{serverId}/databases/{databaseId}`                | PATCH  | Update database         | Yes (API Key) | `/api/application/servers/42/databases/1`                |
 | `/api/application/servers/{serverId}/databases/{databaseId}/reset-password` | POST   | Reset database password | Yes (API Key) | `/api/application/servers/42/databases/1/reset-password` |
 | `/api/application/servers/{serverId}/databases/{databaseId}`                | DELETE | Delete database         | Yes (API Key) | `/api/application/servers/42/databases/1`                |
 

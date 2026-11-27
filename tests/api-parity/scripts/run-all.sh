@@ -1,38 +1,49 @@
 #!/usr/bin/env bash
-# Full local/CI entrypoint: prepare plugin, boot panels, bootstrap, run parity.
+# Local helper: run all three panels in parallel, then compare.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARITY_ROOT="$(cd "${DIR}/.." && pwd)"
-COMPOSE_FILE="${PARITY_ROOT}/docker-compose.yml"
-CRED_DIR="${PARITY_ROOT}/.credentials"
-COMPOSE=(docker compose -f "${COMPOSE_FILE}")
+OUT_DIR="${PARITY_ROOT}/.artifacts"
+mkdir -p "${OUT_DIR}"
+chmod +x "${DIR}"/*.sh
 
-mkdir -p "${CRED_DIR}"
-export PARITY_CRED_DIR="${CRED_DIR}"
+pids=()
+fail=0
 
-echo "==> Preparing plugin mount"
-bash "${DIR}/prepare-plugin-mount.sh"
+run_one() {
+  local panel="$1"
+  local log="${OUT_DIR}/${panel}-run.log"
+  echo "==> starting ${panel} (log: ${log})"
+  (
+    bash "${DIR}/run-panel.sh" "${panel}"
+  ) >"${log}" 2>&1 &
+  pids+=("$!")
+}
 
-echo "==> Starting panels (Pterodactyl v1, v2, FeatherPanel)"
-"${COMPOSE[@]}" pull
-"${COMPOSE[@]}" up -d
+run_one ptero-v1
+run_one ptero-v2
+run_one feather
 
-echo "==> Waiting for HTTP readiness"
-bash "${DIR}/wait-http.sh" "http://127.0.0.1:8081" 420 "pterodactyl-v1"
-bash "${DIR}/wait-http.sh" "http://127.0.0.1:8082" 420 "pterodactyl-v2"
-bash "${DIR}/wait-http.sh" "http://127.0.0.1:8083/api/system/settings" 480 "featherpanel"
+for pid in "${pids[@]}"; do
+  if ! wait "${pid}"; then
+    fail=1
+  fi
+done
 
-echo "==> Bootstrapping Pterodactyl v1"
-bash "${DIR}/bootstrap-pterodactyl.sh" ptero-v1 "http://127.0.0.1:8081" "${CRED_DIR}/ptero-v1.env" 1
+echo "==> panel logs"
+for panel in ptero-v1 ptero-v2 feather; do
+  echo "----- ${panel} -----"
+  tail -n 40 "${OUT_DIR}/${panel}-run.log" || true
+done
 
-echo "==> Bootstrapping Pterodactyl v2"
-bash "${DIR}/bootstrap-pterodactyl.sh" ptero-v2 "http://127.0.0.1:8082" "${CRED_DIR}/ptero-v2.env" 2
+if [[ "${fail}" -ne 0 ]]; then
+  echo "One or more panels failed" >&2
+  exit 1
+fi
 
-echo "==> Bootstrapping FeatherPanel + plugin"
-bash "${DIR}/bootstrap-featherpanel.sh" "http://127.0.0.1:8083" "${CRED_DIR}/feather.env"
-
-echo "==> Running API parity suite"
-node "${DIR}/run-parity.mjs"
-
-echo "==> Done"
+echo "==> compare"
+node "${DIR}/compare-snapshots.mjs" \
+  "${OUT_DIR}/ptero-v1.json" \
+  "${OUT_DIR}/ptero-v2.json" \
+  "${OUT_DIR}/feather.json"

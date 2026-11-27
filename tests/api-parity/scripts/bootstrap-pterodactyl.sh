@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Migrate a Pterodactyl panel container, create an admin user, mint an Application API key.
-# Usage: bootstrap-pterodactyl.sh <compose-service> <base-url> <out-env-file> [panel-major]
+# Migrate a Pterodactyl panel, create admin, mint Application API key.
+# Usage: bootstrap-pterodactyl.sh <compose-file> <base-url> <out-env-file> <major>
 set -euo pipefail
 
-SERVICE="${1:?compose service required}"
+COMPOSE_FILE="${1:?compose file required}"
 BASE_URL="${2:?base url required}"
 OUT_FILE="${3:?output env file required}"
 MAJOR="${4:-1}"
 
-COMPOSE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/docker-compose.yml"
 COMPOSE=(docker compose -f "${COMPOSE_FILE}")
 
-echo "==> Bootstrapping ${SERVICE} (${BASE_URL})"
+echo "==> Bootstrapping Pterodactyl v${MAJOR} (${BASE_URL})"
 
-"${COMPOSE[@]}" exec -T "${SERVICE}" php artisan migrate --seed --force --no-interaction
+# Entrypoint already migrates; re-run is idempotent and fails loudly if SSL still broken.
+"${COMPOSE[@]}" exec -T panel php artisan migrate --seed --force --no-interaction
 
-"${COMPOSE[@]}" exec -T "${SERVICE}" php artisan p:user:make \
+"${COMPOSE[@]}" exec -T panel php artisan p:user:make \
   --email=admin@parity.local \
   --username=parityadmin \
   --name-first=Parity \
@@ -24,9 +24,7 @@ echo "==> Bootstrapping ${SERVICE} (${BASE_URL})"
   --admin=1 \
   --no-interaction || true
 
-# Mint an Application API key with full ACL via artisan tinker.
-# Prints only the bearer token on the last line.
-TOKEN="$("${COMPOSE[@]}" exec -T "${SERVICE}" php artisan tinker --execute="
+TOKEN="$("${COMPOSE[@]}" exec -T panel php artisan tinker --execute="
 \$user = \\Pterodactyl\\Models\\User::query()->where('email', 'admin@parity.local')->firstOrFail();
 \$secret = \\Illuminate\\Support\\Str::random(\\Pterodactyl\\Models\\ApiKey::KEY_LENGTH);
 \$identifier = \\Pterodactyl\\Models\\ApiKey::generateTokenIdentifier(\\Pterodactyl\\Models\\ApiKey::TYPE_APPLICATION);
@@ -51,20 +49,20 @@ if (${MAJOR} === 1) {
 }
 \\Pterodactyl\\Models\\ApiKey::query()->create(\$attrs);
 echo \$identifier . \$secret;
-" | tr -d '\r' | tail -n 1 | tr -d '[:space:]")"
+" | tr -d '\r' | tail -n 1 | tr -d '[:space:]')"
 
 if [[ -z "${TOKEN}" || "${TOKEN}" != ptla_* ]]; then
-  echo "Failed to mint Application API key for ${SERVICE}: '${TOKEN}'" >&2
+  echo "Failed to mint Application API key: '${TOKEN}'" >&2
+  "${COMPOSE[@]}" logs --tail=80 panel >&2 || true
   exit 1
 fi
 
-# Smoke check
 code="$(curl -sS -o /tmp/ptero-smoke.json -w '%{http_code}' \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Accept: application/vnd.pterodactyl.v1+json" \
   "${BASE_URL}/api/application/users")"
 if [[ "${code}" != "200" ]]; then
-  echo "Application API smoke failed for ${SERVICE}: HTTP ${code}" >&2
+  echo "Application API smoke failed: HTTP ${code}" >&2
   cat /tmp/ptero-smoke.json >&2 || true
   exit 1
 fi
@@ -72,7 +70,7 @@ fi
 {
   echo "BASE_URL=${BASE_URL}"
   echo "API_KEY=${TOKEN}"
-  echo "PANEL=${SERVICE}"
+  echo "PANEL=ptero-v${MAJOR}"
   echo "MAJOR=${MAJOR}"
 } > "${OUT_FILE}"
 

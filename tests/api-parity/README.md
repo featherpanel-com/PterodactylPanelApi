@@ -1,38 +1,36 @@
 # API parity (Pterodactyl v1 / v2 / FeatherPanel)
 
-CI boots three live panels and fails unless this plugin matches **1:1**:
+CI runs **three panel jobs in parallel**, then a compare job:
 
-1. **Pterodactyl v1** (`ghcr.io/pterodactyl/panel:v1.15.2`) — full Application API catalog + live probes
-2. **Pterodactyl v2** (`ghcr.io/pterodactyl/panel:v2.0.0-beta.3`) — shared Application surface (users / locations / nodes / servers)
-3. **FeatherPanel** (`ghcr.io/mythicalltd/featherpanel-backend`) with **this repo** mounted as `pterodactylpanelapi`
+| Job | What it does |
+| --- | --- |
+| `Route catalog` | Fast offline check: plugin Application routes vs official Pterodactyl v1 |
+| `Pterodactyl v1` | Boot panel, mint API key, capture probe snapshot |
+| `Pterodactyl v2` | Same for v2 |
+| `FeatherPanel + plugin` | Boot FeatherPanel with this repo mounted as the addon |
+| `Compare 1:1` | Fail unless Feather matches v1 (full) and v2 (shared surface) |
 
-## What is compared
+Any panel job can fail on its own without waiting for the others.
 
-- Application route catalog vs official Pterodactyl v1 routes (exact 1:1)
-- Shared v1/v2 routes must exist on the plugin
-- Live `GET`/`POST` probes for users + locations (status, fractal shape, attribute keys)
-- Live list probes for nodes, servers, nests (nests: v1 + Feather only)
-- `401` error envelope keys on Feather vs v1
-
-## Run locally
+## Local
 
 ```bash
 cd tests/api-parity
-chmod +x scripts/*.sh
-./scripts/run-all.sh
+./scripts/run-all.sh          # parallel local run
+./scripts/run-panel.sh ptero-v1
+./scripts/run-panel.sh ptero-v2
+./scripts/run-panel.sh feather
+node scripts/compare-snapshots.mjs .artifacts/ptero-v1.json .artifacts/ptero-v2.json .artifacts/feather.json
 ```
-
-Requires Docker, Docker Compose, Node.js 22+, rsync, and curl.
 
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
-| `docker-compose.yml` | Three-panel stack |
+| `compose/ptero-v1.yml` | Pterodactyl 1.x stack |
+| `compose/ptero-v2.yml` | Pterodactyl 2.x stack |
+| `compose/feather.yml` | FeatherPanel + plugin mount |
+| `scripts/run-panel.sh` | Boot → bootstrap → capture one panel |
+| `scripts/capture-panel.mjs` | Live probes → snapshot JSON |
+| `scripts/compare-snapshots.mjs` | 1:1 status/shape/key comparison |
 | `fixtures/ptero-*-application-routes.json` | Official Application routes |
-| `scripts/prepare-plugin-mount.sh` | Stage plugin tree for bind-mount |
-| `scripts/bootstrap-*.sh` | Migrate / admin / API keys |
-| `scripts/run-parity.mjs` | Live 1:1 comparisons |
-| `scripts/run-all.sh` | Full orchestration |
-
-Credentials and the JSON report land in `.credentials/` (gitignored).

@@ -1,0 +1,6 @@
+# Newer mysql/mariadb clients default to requiring TLS. Our CI MariaDB
+# instances do not serve TLS, so force plaintext for schema load + artisan.
+[client]
+ssl=0
+ssl-mode=DISABLED
+skip-ssl
